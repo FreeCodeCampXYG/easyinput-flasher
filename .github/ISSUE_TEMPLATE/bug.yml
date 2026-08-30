@@ -1,0 +1,30 @@
+name: Bug report
+description: 报告桌面端、设备识别、烧录或恢复问题
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: 请勿粘贴完整 MAC、串口原始日志、代理凭据或 Token。
+  - type: input
+    id: version
+    attributes:
+      label: EasyInput Flasher 版本
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Windows 版本与架构
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤与预期结果
+    validations:
+      required: true
+  - type: textarea
+    id: redacted_logs
+    attributes:
+      label: 脱敏后的错误摘要

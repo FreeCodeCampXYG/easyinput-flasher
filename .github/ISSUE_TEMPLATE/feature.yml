@@ -1,0 +1,22 @@
+name: Feature request
+description: 提议属于桌面烧录器边界的新能力
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 用户问题
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 建议的使用体验与边界
+    validations:
+      required: true
+  - type: dropdown
+    id: impact
+    attributes:
+      label: 涉及平台
+      options: [Windows x64, Windows ARM64, macOS, Linux, 所有平台]

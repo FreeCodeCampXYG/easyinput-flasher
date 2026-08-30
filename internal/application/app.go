@@ -1,0 +1,244 @@
+package application
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/FreeCodeCampXYG/easyinput-flasher/internal/config"
+	"github.com/FreeCodeCampXYG/easyinput-flasher/internal/device"
+	"github.com/FreeCodeCampXYG/easyinput-flasher/internal/domain"
+	"github.com/FreeCodeCampXYG/easyinput-flasher/internal/firmware"
+	"github.com/FreeCodeCampXYG/easyinput-flasher/internal/flasher"
+)
+
+type FlashRequest struct {
+	DeviceID     string `json:"deviceId"`
+	FirmwareID   string `json:"firmwareId"`
+	Confirmation string `json:"confirmation"`
+}
+
+type App struct {
+	version string
+	ctx     context.Context
+
+	mu       sync.RWMutex
+	settings config.Settings
+	devices  map[string]domain.DeviceInfo
+	firmware []domain.FirmwareRelease
+	status   domain.FlashStatus
+	cancel   context.CancelFunc
+}
+
+func New(version string) *App {
+	return &App{version: version, devices: make(map[string]domain.DeviceInfo), status: newStatus(domain.FlashStageIdle, "等待检测设备", 0)}
+}
+
+func (a *App) Startup(ctx context.Context) {
+	a.ctx = ctx
+	settings, err := config.Load()
+	if err != nil {
+		a.setStatus(domain.FlashStageFailed, err.Error(), 0, false)
+		return
+	}
+	a.mu.Lock()
+	a.settings = settings
+	a.mu.Unlock()
+}
+
+func (a *App) Shutdown(context.Context) { a.CancelFlash() }
+
+func (a *App) GetDashboardSnapshot() domain.DashboardSnapshot {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	devices := make([]domain.DeviceInfo, 0, len(a.devices))
+	for _, item := range a.devices {
+		devices = append(devices, item)
+	}
+	return domain.DashboardSnapshot{AppVersion: a.version, Status: a.status, Devices: devices, Firmware: a.firmware, ProxyMode: a.settings.ProxyMode}
+}
+
+func (a *App) ScanDevices() ([]domain.DeviceInfo, error) {
+	devices, err := device.ListPorts()
+	if err != nil {
+		return nil, err
+	}
+	a.mu.Lock()
+	a.devices = make(map[string]domain.DeviceInfo, len(devices))
+	for _, item := range devices {
+		a.devices[item.ID] = item
+	}
+	a.mu.Unlock()
+	a.setStatus(domain.FlashStageInspect, "已发现串口候选；请在下载模式下识别设备", 10, false)
+	return devices, nil
+}
+
+func (a *App) InspectDevice(deviceID string) (domain.DeviceInfo, error) {
+	a.mu.RLock()
+	item, found := a.devices[deviceID]
+	a.mu.RUnlock()
+	if !found {
+		return domain.DeviceInfo{}, fmt.Errorf("端口已变化，请重新扫描")
+	}
+	runner, err := flasher.NewRunner()
+	if err != nil {
+		return item, err
+	}
+	inspectCtx, cancel := context.WithTimeout(a.ctx, 15*time.Second)
+	defer cancel()
+	output, err := runner.Inspect(inspectCtx, item.Port)
+	if err != nil {
+		return item, err
+	}
+	if !strings.Contains(strings.ToLower(output), "esp32-s3") {
+		return item, fmt.Errorf("目标端口不是 ESP32-S3，已停止")
+	}
+	item.Mode = "download"
+	item.Chip = domain.ChipType
+	item.MACSuffix = macSuffix(output)
+	item.Verified = item.MACSuffix != ""
+	item.ObservedAt = time.Now().UTC().Format(time.RFC3339)
+	a.mu.Lock()
+	a.devices[item.ID] = item
+	a.mu.Unlock()
+	// 仅在本轮下载模式验身成功后开放前端确认；StartFlash 仍会再次校验设备和确认文本。
+	a.setStatus(domain.FlashStageConfirm, "设备已验证，请核对 MAC 尾号后确认烧录", 20, true)
+	return item, nil
+}
+
+func (a *App) ListFirmware() ([]domain.FirmwareRelease, error) {
+	a.mu.RLock()
+	settings := a.settings
+	a.mu.RUnlock()
+	client, err := firmware.NewGitHubClient(settings)
+	if err != nil {
+		return nil, err
+	}
+	var releases []domain.FirmwareRelease
+	for _, source := range settings.Sources {
+		items, listErr := client.ListReleases(a.ctx, source)
+		if listErr != nil {
+			continue
+		}
+		releases = append(releases, items...)
+	}
+	a.mu.Lock()
+	a.firmware = releases
+	a.mu.Unlock()
+	return releases, nil
+}
+
+func (a *App) StartFlash(request FlashRequest) error {
+	a.mu.Lock()
+	if a.cancel != nil {
+		a.mu.Unlock()
+		return fmt.Errorf("已有烧录任务正在执行")
+	}
+	item, found := a.devices[request.DeviceID]
+	if !found || !item.Verified || item.Chip != domain.ChipType {
+		a.mu.Unlock()
+		return fmt.Errorf("设备尚未完成 ESP32-S3 验身")
+	}
+	expected := "确认烧录 " + item.MACSuffix
+	if request.Confirmation != expected {
+		a.mu.Unlock()
+		return fmt.Errorf("确认文本不匹配")
+	}
+	jobCtx, cancel := context.WithCancel(a.ctx)
+	a.cancel = cancel
+	a.mu.Unlock()
+	defer a.finishJob()
+
+	repository, tag, ok := strings.Cut(request.FirmwareID, "@")
+	if !ok {
+		return fmt.Errorf("固件选择无效")
+	}
+	a.setStatus(domain.FlashStageDownload, "正在下载并校验固件，请保持网络连接", 30, false)
+	a.mu.RLock()
+	settings := a.settings
+	a.mu.RUnlock()
+	client, err := firmware.NewGitHubClient(settings)
+	if err != nil {
+		return err
+	}
+	cacheRoot, err := bundlePath(repository, tag)
+	if err != nil {
+		return err
+	}
+	manifest, err := client.DownloadBundle(jobCtx, repository, tag, cacheRoot)
+	if err != nil {
+		a.setStatus(domain.FlashStageFailed, err.Error(), 0, false)
+		return err
+	}
+	a.setStatus(domain.FlashStageWrite, "烧录中，请勿拔出 USB 数据线、关闭电源或再次按 BOOT", 55, false)
+	runner, err := flasher.NewRunner()
+	if err != nil {
+		return err
+	}
+	if _, err := runner.Flash(jobCtx, item.Port, cacheRoot, manifest); err != nil {
+		a.setStatus(domain.FlashStageFailed, err.Error(), 0, false)
+		return err
+	}
+	a.setStatus(domain.FlashStageRecovery, "写入和工具校验完成。若手动进入下载模式，请关机后重新开机", 90, false)
+	return nil
+}
+
+func (a *App) CheckRecovery() (bool, error) {
+	result, err := device.HasExpectedHID(a.ctx)
+	if err != nil {
+		return false, err
+	}
+	if result {
+		a.setStatus(domain.FlashStageCompleted, "烧录完成，已检测到正常 HID；具体功能仍需按测试范围验证", 100, false)
+	}
+	return result, nil
+}
+
+func (a *App) CancelFlash() {
+	a.mu.Lock()
+	cancel := a.cancel
+	a.mu.Unlock()
+	if cancel != nil {
+		cancel()
+		a.setStatus(domain.FlashStageCancelled, "烧录任务已请求取消；请勿拔线，等待当前工具退出", 0, false)
+	}
+}
+
+func (a *App) finishJob() {
+	a.mu.Lock()
+	a.cancel = nil
+	a.mu.Unlock()
+}
+
+func (a *App) setStatus(stage domain.FlashStage, message string, progress int, canFlash bool) {
+	a.mu.Lock()
+	a.status = domain.FlashStatus{Stage: stage, Message: message, Progress: progress, CanFlash: canFlash, UpdatedAt: time.Now().UTC()}
+	a.mu.Unlock()
+}
+
+func newStatus(stage domain.FlashStage, message string, progress int) domain.FlashStatus {
+	return domain.FlashStatus{Stage: stage, Message: message, Progress: progress, UpdatedAt: time.Now().UTC()}
+}
+
+func macSuffix(output string) string {
+	for _, part := range strings.Fields(output) {
+		clean := strings.Trim(part, " ,.;")
+		if strings.Count(clean, ":") == 5 && len(clean) >= 5 {
+			return strings.ToUpper(clean[len(clean)-5:])
+		}
+	}
+	return ""
+}
+
+func bundlePath(repository, tag string) (string, error) {
+	cache, err := os.UserCacheDir()
+	if err != nil {
+		return "", err
+	}
+	safe := strings.NewReplacer("/", "_", "\\", "_", ":", "_").Replace(repository + "-" + tag)
+	return filepath.Join(cache, "easyinput-flasher", "firmware", safe), nil
+}

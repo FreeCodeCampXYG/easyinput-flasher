@@ -1,0 +1,23 @@
+name: Build report
+description: 报告本地或 GitHub Actions 构建问题
+title: "[Build]: "
+labels: [build]
+body:
+  - type: input
+    id: target
+    attributes:
+      label: 目标平台或 workflow
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: 执行命令与脱敏输出
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: 期望与实际结果
+    validations:
+      required: true

@@ -1,0 +1,16 @@
+frontend/node_modules/
+frontend/dist/
+frontend/wailsjs/
+frontend/package.json.md5
+build/bin/
+dist/
+coverage/
+*.log
+*.tmp
+__pycache__/
+.idea/
+.vscode/
+tools/esptool/esptool.exe
+tools/esptool/*.spec
+tools/esptool/build/
+tools/esptool/dist/
