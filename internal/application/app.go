@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -60,6 +61,12 @@ func (a *App) GetDashboardSnapshot() domain.DashboardSnapshot {
 	for _, item := range a.devices {
 		devices = append(devices, item)
 	}
+	sort.Slice(devices, func(i, j int) bool {
+		if devices[i].Mode != devices[j].Mode {
+			return devices[i].Mode == "download"
+		}
+		return devices[i].Port < devices[j].Port
+	})
 	return domain.DashboardSnapshot{AppVersion: a.version, Status: a.status, Devices: devices, Firmware: a.firmware, ProxyMode: a.settings.ProxyMode, Logs: append([]domain.ActivityLog(nil), a.logs...)}
 }
 
@@ -102,7 +109,16 @@ func (a *App) ScanDevices() ([]domain.DeviceInfo, error) {
 	}
 	a.mu.Unlock()
 	message := "未发现 EasyInput；请确认数据线、蓝牙连接或设备电源"
-	if len(devices) > 0 {
+	hasDownloadPort := false
+	for _, item := range devices {
+		if item.Mode == "download" {
+			hasDownloadPort = true
+			break
+		}
+	}
+	if hasDownloadPort {
+		message = "已发现下载端口；现在可读取芯片与 MAC"
+	} else if len(devices) > 0 {
 		message = "已发现正常模式设备；短按并松开 BOOT 后刷新下载端口"
 	}
 	// 扫描阶段不属于写入任务，进度保持 0，避免前端把“检测设备”误显示为烧录中。

@@ -215,10 +215,7 @@ function App() {
       case "discover":
         return <DiscoverPage />;
       case "devices":
-        return <DevicesPage devices={snapshot.devices} logs={snapshot.logs} onExport={async () => {
-          const result = await exportDiagnostics();
-          setNotice(result.message);
-        }} />;
+        return <DevicesPage devices={snapshot.devices} logs={snapshot.logs} onExport={exportDiagnostics} />;
       case "updates":
         return (
           <UpdatesPage
@@ -736,10 +733,13 @@ function DiscoverPage() {
   );
 }
 
-function DevicesPage({ devices, logs, onExport }: { devices: DeviceInfo[]; logs: ActivityLog[]; onExport: () => void }) {
+function DevicesPage({ devices, logs, onExport }: { devices: DeviceInfo[]; logs: ActivityLog[]; onExport: () => Promise<{ ok: boolean; message?: string }> }) {
+  const [exportNotice, setExportNotice] = useState<{ ok: boolean; message?: string }>();
+  const exportLogs = async () => setExportNotice(await onExport());
   return (
     <div className="page">
-      <PageHeader eyebrow="本机诊断" title="设备与日志" description="查看端口、设备身份与脱敏运行记录。日志不会保存完整 MAC、用户文本或快捷键内容。" actions={<button className="button secondary" type="button" onClick={onExport}><Download size={16} />导出诊断</button>} />
+      <PageHeader eyebrow="本机诊断" title="设备与日志" description="查看端口、设备身份与脱敏运行记录。日志不会保存完整 MAC、用户文本或快捷键内容。" actions={<button className="button secondary" type="button" onClick={exportLogs}><Download size={16} />导出诊断</button>} />
+      {exportNotice?.message && <div className={`diagnostic-notice ${exportNotice.ok ? "success" : "error"}`}>{exportNotice.message}</div>}
       <div className="device-strip">
         {devices.map((device) => (
           <div className="device-summary" key={device.id}>

@@ -27,6 +27,7 @@
 - 前端主题和 Windows 检测改动已通过 npm typecheck/build、Go test/vet 和 `git diff --check`；真实 HID/串口设备回归仍待实板。
 - 本轮新增 BOOT 引导提示与“刷新下载端口”动作，前端 typecheck/build、Go test/vet、差异检查通过；尚未推送或发布。
 - 提交 `49e7ead` 已推送 main；Go test/vet、前端 typecheck/build 和 `git diff --check` 通过，未创建新 Release tag。
+- 提交 `c7a0009` 已推送 main：正常 HID/BLE 只确认设备在线，芯片字段留待下载模式 esptool 验身；BOOT 引导不再显示为红色错误。Go/前端验证通过，未创建新 Release tag。
 - 当前电脑没有 Git Bash，Unix 打包脚本只能完成静态检查，须以 GitHub macOS/Linux native runner 作为实际验证证据。
 - `v0.1.0` Release 的 Linux 资产构建成功，macOS 两架构在默认 Python 上构建 PyInstaller helper 失败；`v0.1.1` 已修复并验证 macOS/Linux/Windows x64 资产，Windows ARM64 因 cryptography 缺少原生 OpenSSL wheel 失败，Release workflow 现改用 x64 Python/helper，待新 tag 验证。
 - `v0.1.3` 六个平台 package jobs 全部成功，publish job 因未 checkout 仓库而无法让 `gh release create --notes-file` 找到 `.git` 失败；新增 `publish-existing-release.yml` 复用该 run 的 artifacts 发布，避免重跑六平台构建。
