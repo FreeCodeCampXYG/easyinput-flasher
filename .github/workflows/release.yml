@@ -70,8 +70,8 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          py -m pip install --disable-pip-version-check -r tools/esptool/requirements.txt
-          py -m PyInstaller --noconfirm --clean --onefile --name esptool --distpath tools/esptool/dist --workpath tools/esptool/build --specpath tools/esptool tools/esptool/entry.py
+          python -m pip install --disable-pip-version-check -r tools/esptool/requirements.txt
+          python -m PyInstaller --noconfirm --clean --onefile --name esptool --distpath tools/esptool/dist --workpath tools/esptool/build --specpath tools/esptool tools/esptool/entry.py
       - name: Build bundled esptool helper on Unix
         if: runner.os != 'Windows'
         shell: bash

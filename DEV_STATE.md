@@ -20,7 +20,7 @@
 - esptool helper、六平台 CI、发布包与真实设备写入尚未验证；GPL helper 的对应源代码与分发义务仍需在正式发布前复核。
 - Wails 结构审计 13 PASS / 1 WARN；唯一 WARN 是首版不提供 NSIS 安装器，仅提供 Windows 便携 ZIP。
 - 当前电脑没有 Git Bash，Unix 打包脚本只能完成静态检查，须以 GitHub macOS/Linux native runner 作为实际验证证据。
-- `v0.1.0` Release 的 Linux 资产构建成功，macOS 两架构在默认 Python 上构建 PyInstaller helper 失败；已改为 Actions 固定 Python 3.13，按规则不移动 `v0.1.0`，待 `v0.1.1` 验证。
+- `v0.1.0` Release 的 Linux 资产构建成功，macOS 两架构在默认 Python 上构建 PyInstaller helper 失败；`v0.1.1` 已修复并验证 macOS/Linux/Windows x64 资产，Windows ARM64 因 `py` 启动器选到系统 Python 3.14 导致 cryptography/OpenSSL wheel 缺失，已改用 setup-python 提供的 `python` 命令，待 `v0.1.2` 验证。
 - 一次 Wails 重建曾因先前手动启动的同名可执行文件占用 `build/bin` 失败；精确结束该项目进程后重建成功。构建前必须退出正在运行的应用。
 
 ## 下一步
