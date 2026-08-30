@@ -2,7 +2,7 @@
 
 1. 确认许可证、版本、变更日志和 Git 工作树。
 2. 推送经过审阅的 `vX.Y.Z` annotated tag。
-3. GitHub Actions 在六个原生 runner 构建：Windows 为便携 ZIP，macOS 为 `.app` ZIP，Linux 为 TAR.GZ；每项资产生成 SHA-256 与构建溯源。esptool helper 使用 `actions/setup-python` 固定 Python 3.13，并通过 `python -m` 调用；Windows ARM64 使用 x64 helper 以避开 cryptography 原生 OpenSSL wheel 缺口，Windows 系统兼容层可运行该 helper。
+3. GitHub Actions 在六个原生 runner 构建：Windows 为便携 ZIP，macOS 为 `.app` ZIP，Linux 为 TAR.GZ；每项资产生成 SHA-256 与构建溯源。烧录协议由固定版本的纯 Go `espflasher` 编译进主程序，不再构建或携带 Python helper。
 4. 下载公开资产，重新计算 SHA-256 并检查压缩包内容。
 5. 在真实 Windows 和 EasyInput V2.0 上分别验证：安装、设备识别、错误芯片拒绝、下载校验、烧录、恢复 HID、取消和异常拔线后的提示。
 

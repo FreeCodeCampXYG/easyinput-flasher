@@ -5,7 +5,7 @@ Wails 前端
   -> internal/application       状态机与受控绑定
   -> internal/firmware          GitHub Release、manifest、SHA-256、缓存
   -> internal/device            串口候选、下载模式验身、HID 恢复检查
-  -> internal/flasher           固定 esptool helper 与参数白名单
+  -> internal/flasher           纯 Go ESP32-S3 协议适配、manifest 固定镜像与写入门禁
   -> internal/config            用户来源和代理设置
 ```
 

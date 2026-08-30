@@ -145,6 +145,7 @@ func (a *App) InspectDevice(deviceID string) (domain.DeviceInfo, error) {
 	defer cancel()
 	output, err := runner.Inspect(inspectCtx, item.Port)
 	if err != nil {
+		a.appendLog("error", "验身", err.Error())
 		return item, err
 	}
 	if !strings.Contains(strings.ToLower(output), "esp32-s3") {
@@ -173,12 +174,19 @@ func (a *App) ListFirmware() ([]domain.FirmwareRelease, error) {
 		return nil, err
 	}
 	var releases []domain.FirmwareRelease
+	var failures []string
 	for _, source := range settings.Sources {
 		items, listErr := client.ListReleases(a.ctx, source)
 		if listErr != nil {
+			failure := source.Repository + ": " + listErr.Error()
+			failures = append(failures, failure)
+			a.appendLog("warning", "固件", failure)
 			continue
 		}
 		releases = append(releases, items...)
+	}
+	if len(releases) == 0 && len(failures) > 0 {
+		return nil, fmt.Errorf("未能读取 GitHub Release，请检查 127.0.0.1:1080 代理或网络连接: %s", strings.Join(failures, "；"))
 	}
 	a.mu.Lock()
 	a.firmware = releases

@@ -1,5 +1,13 @@
 # EasyInput Flasher 开发状态
 
+## 2026-08-31：S3 验身与 Release 拉取修复
+
+- ESP32-S3 下载端口的只读复核已确认可连通；旧实现错误调用 `chip-id`，该子命令在 S3 上会在读取 MAC 后返回非零，导致 UI 将有效端口误报为工具失败。
+- 现改为 `read-mac` 与 `flash-id` 的 ROM 兼容组合，写入同样使用受限的 `--no-stub` 路径；仍只接受 manifest 声明的三段镜像，且保留人工确认与写前验身。
+- 默认及旧版设置均使用用户指定的 `http://127.0.0.1:1080`，烧录页启动时自动请求 `FreeCodeCampXYG/easy-input-maker` 的 Release；读取失败会进入运行日志和界面提示，不再静默显示空列表。
+- 已核验 `firmware-v0.2.1` Release 含 `firmware-manifest.json`、bootloader、分区表和应用镜像；实际下载、写入及恢复仍待新版桌面包与实板验证。
+- 已调研纯 Go 候选 `tinygo.org/x/espflasher v0.8.1`：其声明支持 ESP32-S3 / USB-JTAG；由于项目依赖治理库无该条目，本轮未将其加入正式依赖或发布包。
+
 ## 当前目标
 
 - 构建六平台 Wails 烧录器首版：从已验证的 GitHub Release 下载固件，完成设备验身、人工确认、写入、恢复检查与脱敏日志。
@@ -12,17 +20,17 @@
 - 明亮主题：将近黑色背景改为浅灰/白色工作台，提升侧栏、正文、控件、日志和底部状态栏对比度，保留青绿/琥珀/红色状态语义。
 - Windows 硬件检测：扫描同时识别正常 HID（VID 303A / PID 1006）和下载模式串口（PID 1001）；正常 HID 仅展示设备，不开放烧录，进入 BOOT 后才允许 ESP32-S3/MAC 验身。
 - 创建独立仓库骨架，未修改 `easy-input-maker` 固件工作区。
-- 后端已实现 manifest 目标校验、三段镜像 SHA-256 校验、公开 GitHub Release 读取、下载缓存、串口扫描、esptool 命令白名单、MAC 脱敏和确认写入状态机。
+- 后端已实现 manifest 目标校验、三段镜像 SHA-256 校验、公开 GitHub Release 读取、下载缓存、串口扫描、纯 Go ESP32-S3 协议适配、MAC 脱敏和确认写入状态机。
 - Go 1.27 已安装；Go 全量测试与 `go vet`、前端类型检查和生产构建均通过，Wails Windows x64 原生构建成功。
 - 已使用用户提供图标作为应用图标源文件。
 - 已补齐 Windows x64 CI/标签 Release 工作流、Issue/PR 模板、项目 flow/docs 协作骨架；Wails 结构审计 11 PASS / 3 WARN / 0 FAIL。
-- 发布矩阵已扩展为 Windows x64/ARM64、macOS Intel/Apple Silicon、Linux x64/ARM64；每个平台原生构建 Wails 与 esptool helper，并生成归档、SHA-256 和构建溯源。
-- 自有代码采用 PolyForm Noncommercial 1.0.0，版权归 StarLine；固件、esptool 和其他依赖的上游许可证已在 `THIRD_PARTY_NOTICES.md` 分开记录。
+- 发布矩阵已扩展为 Windows x64/ARM64、macOS Intel/Apple Silicon、Linux x64/ARM64；每个平台原生构建 Wails，烧录协议编译进主程序，并生成归档、SHA-256 和构建溯源。
+- 自有代码采用 PolyForm Noncommercial 1.0.0，版权归 StarLine；固件、`espflasher` 和其他依赖的上游许可证已在 `THIRD_PARTY_NOTICES.md` 分开记录。
 
 ## 已知边界
 
-- 当前没有可用的 `firmware-manifest.json` Release，因此不能真实下载或烧录。
-- esptool helper、六平台 CI、发布包与真实设备写入尚未验证；GPL helper 的对应源代码与分发义务仍需在正式发布前复核。
+- `FreeCodeCampXYG/easy-input-maker` 已有 `firmware-v0.2.1` 的受信 manifest Release；新版桌面包尚待实板验证下载、写入和恢复结果。
+- 纯 Go 烧录器已完成本地 Windows Wails 编译；六平台 CI、发布包以及真实设备写入/HID 恢复仍待验证。当前无 Python、PyInstaller 或 GPL helper 分发义务。
 - Wails 结构审计 13 PASS / 1 WARN；唯一 WARN 是首版不提供 NSIS 安装器，仅提供 Windows 便携 ZIP。
 - 前端主题和 Windows 检测改动已通过 npm typecheck/build、Go test/vet 和 `git diff --check`；真实 HID/串口设备回归仍待实板。
 - 本轮新增 BOOT 引导提示与“刷新下载端口”动作，前端 typecheck/build、Go test/vet、差异检查通过；尚未推送或发布。
@@ -36,7 +44,7 @@
 
 ## 下一步
 
-1. 在 GitHub Actions 完成六平台 CI 与 Release 演练，验证各平台打包的 esptool helper。
+1. 在 GitHub Actions 完成六平台 CI 与 Release 演练，验证纯 Go 烧录器已随各平台主程序编译且包内无外部 helper。
 2. 推送 Maker 的 manifest 工作流后，以 `firmware-v*` 完成首次云端固件发布。
 3. 在真实 Windows 和 EasyInput V2.0 上验证设备验身、写入、取消、恢复 HID 与功能边界。
 4. 审查第三方 notices 后，按 Git 治理提交、推送、标注 `v0.1.0` 与创建桌面端 Release。

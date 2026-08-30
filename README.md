@@ -13,7 +13,7 @@ EasyInput Flasher 是 EasyInput V2.0 的桌面烧录工具。它从受信任 Git
 1. 仅显示带 `firmware-manifest.json` 的 Release。
 2. 清单必须声明 `easyinput-v2`、`esp32s3` 和完整的三段写入范围。
 3. 下载后逐段 SHA-256 校验，失败时不启用烧录。
-4. 扫描串口后，通过 esptool 只读读取 ESP32-S3 信息和 MAC 尾号。
+4. 扫描串口后，通过内嵌纯 Go 烧录器只读读取 ESP32-S3 信息和 MAC 尾号。
 5. 必须输入界面显示的精确确认文本，才会开始写入。
 6. 写入结束后提示恢复正常启动，并检查预期 USB HID 是否重新出现。
 
@@ -46,4 +46,4 @@ macOS 包在未使用 Apple Developer ID 签名和 notarization 前会被系统�
 
 ## 许可证
 
-自有代码采用 [PolyForm Noncommercial 1.0.0](LICENSE)，版权归 StarLine，仅允许该许可证定义的非商业用途。固件和烧录辅助程序保留其各自上游许可证，详见 [第三方声明](THIRD_PARTY_NOTICES.md)。
+自有代码采用 [PolyForm Noncommercial 1.0.0](LICENSE)，版权归 StarLine，仅允许该许可证定义的非商业用途。固件和纯 Go 烧录依赖保留其各自上游许可证，详见 [第三方声明](THIRD_PARTY_NOTICES.md)。

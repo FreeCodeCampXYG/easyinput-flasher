@@ -120,7 +120,17 @@ function App() {
   }, []);
 
   useEffect(() => {
-    getDashboardSnapshot().then(applySnapshot).catch(() => undefined);
+    let disposed = false;
+    const loadInitialData = async () => {
+      try {
+        applySnapshot(await getDashboardSnapshot());
+        if (!disposed) applySnapshot(await listFirmware());
+      } catch (error) {
+        if (!disposed) setNotice(error instanceof Error ? error.message : "固件列表读取失败，请检查网络与代理设置");
+      }
+    };
+    void loadInitialData();
+    return () => { disposed = true; };
   }, [applySnapshot]);
 
   useEffect(() => {

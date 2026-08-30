@@ -4,78 +4,114 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/FreeCodeCampXYG/easyinput-flasher/internal/domain"
+	"tinygo.org/x/espflasher/pkg/espflasher"
 )
 
-type Runner struct {
-	helper string
-}
+// Runner 是纯 Go 烧录器适配层；前端只能请求固定流程，不能传入串口命令或偏移。
+type Runner struct{}
 
-func NewRunner() (*Runner, error) {
-	executable, err := os.Executable()
-	if err != nil {
-		return nil, err
-	}
-	name := "esptool"
-	if runtime.GOOS == "windows" {
-		name += ".exe"
-	}
-	return &Runner{helper: filepath.Join(filepath.Dir(executable), "tools", "esptool", name)}, nil
-}
+func NewRunner() (*Runner, error) { return &Runner{}, nil }
 
 func (r *Runner) Inspect(ctx context.Context, port string) (string, error) {
-	if _, err := os.Stat(r.helper); err != nil {
-		return "", fmt.Errorf("烧录辅助程序未就绪: %w", err)
-	}
-	var results []string
-	// esptool 的子命令在不同版本不能假设可串联；逐项只读执行可保持验身证据明确。
-	for _, operation := range []string{"chip-id", "read-mac", "flash-id"} {
-		output, err := r.run(ctx, "--chip", domain.ChipType, "--port", port, operation)
-		if err != nil {
-			return strings.Join(results, "\n"), err
-		}
-		results = append(results, output)
-	}
-	return strings.Join(results, "\n"), nil
-}
-
-// FlashArgs 由清单的固定偏移生成，不接受前端传入的任意命令或路径。
-func FlashArgs(port, bundleRoot string, manifest domain.FirmwareManifest) ([]string, error) {
-	if manifest.Board != domain.BoardID || manifest.Chip != domain.ChipType || len(manifest.Files) != 3 {
-		return nil, fmt.Errorf("固件清单未通过目标设备检查")
-	}
-	arguments := []string{"--chip", domain.ChipType, "--port", port, "--baud", "460800", "write-flash"}
-	for _, file := range manifest.Files {
-		arguments = append(arguments, file.Offset, filepath.Join(bundleRoot, file.Name))
-	}
-	return arguments, nil
-}
-
-func (r *Runner) Flash(ctx context.Context, port, bundleRoot string, manifest domain.FirmwareManifest) (string, error) {
-	if _, err := os.Stat(r.helper); err != nil {
-		return "", fmt.Errorf("烧录辅助程序未就绪: %w", err)
-	}
-	arguments, err := FlashArgs(port, bundleRoot, manifest)
+	flasher, err := openROM(ctx, port)
 	if err != nil {
 		return "", err
 	}
-	return r.run(ctx, arguments...)
+	defer flasher.Close()
+	mac, err := flasher.MAC()
+	if err != nil {
+		return "", fmt.Errorf("读取设备 MAC 失败: %w", err)
+	}
+	if flasher.ChipType() != espflasher.ChipESP32S3 {
+		return "", fmt.Errorf("目标端口不是 ESP32-S3，已停止")
+	}
+	return fmt.Sprintf("Chip type: %s\nMAC: %s", flasher.ChipName(), mac), nil
 }
 
-func (r *Runner) run(ctx context.Context, arguments ...string) (string, error) {
-	command := exec.CommandContext(ctx, r.helper, arguments...)
-	command.SysProcAttr = hiddenWindowAttributes()
-	output, err := command.CombinedOutput()
-	redacted := redact(string(output))
+func (r *Runner) Flash(ctx context.Context, port, bundleRoot string, manifest domain.FirmwareManifest) (string, error) {
+	images, err := loadImages(bundleRoot, manifest)
 	if err != nil {
-		return redacted, fmt.Errorf("烧录工具执行失败: %w", err)
+		return "", err
 	}
-	return redacted, nil
+	flasher, err := openForFlash(ctx, port)
+	if err != nil {
+		return "", err
+	}
+	defer flasher.Close()
+	if err := flashWithContext(ctx, flasher, images); err != nil {
+		return "", err
+	}
+	return "纯 Go 烧录器已完成受控三段写入", nil
+}
+
+func openROM(ctx context.Context, port string) (*espflasher.Flasher, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	options := espflasher.DefaultOptions()
+	options.ChipType = espflasher.ChipESP32S3
+	options.ResetMode = espflasher.ResetNoReset
+	options.SkipStub = true
+	options.ConnectAttempts = 3
+	return espflasher.New(port, options)
+}
+
+func openForFlash(ctx context.Context, port string) (*espflasher.Flasher, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	options := espflasher.DefaultOptions()
+	options.ChipType = espflasher.ChipESP32S3
+	options.ResetMode = espflasher.ResetNoReset
+	options.FlashBaudRate = 460800
+	options.ConnectAttempts = 3
+	// 用户已手动进入下载模式；内嵌 stub 只用于本次会话的可靠写入与校验，结束后仍要求完整关机再开机。
+	options.SkipStub = false
+	return espflasher.New(port, options)
+}
+
+func flashWithContext(ctx context.Context, flasher *espflasher.Flasher, images []espflasher.ImagePart) error {
+	done := make(chan error, 1)
+	go func() { done <- flasher.FlashImages(images, nil) }()
+	select {
+	case err := <-done:
+		if err != nil {
+			return fmt.Errorf("纯 Go 烧录失败: %w", err)
+		}
+		return nil
+	case <-ctx.Done():
+		// 关闭本会话串口可中断阻塞读写；不会清理下载缓存，也不会伪造写入成功状态。
+		_ = flasher.Close()
+		<-done
+		return ctx.Err()
+	}
+}
+
+func loadImages(bundleRoot string, manifest domain.FirmwareManifest) ([]espflasher.ImagePart, error) {
+	if manifest.Board != domain.BoardID || manifest.Chip != domain.ChipType || len(manifest.Files) != 3 {
+		return nil, fmt.Errorf("固件清单未通过目标设备检查")
+	}
+	images := make([]espflasher.ImagePart, 0, len(manifest.Files))
+	for _, file := range manifest.Files {
+		if filepath.Base(file.Name) != file.Name || file.Name == "." || filepath.IsAbs(file.Name) {
+			return nil, fmt.Errorf("固件清单包含无效文件名: %s", file.Name)
+		}
+		offset, err := strconv.ParseUint(file.Offset, 0, 32)
+		if err != nil {
+			return nil, fmt.Errorf("固件清单偏移无效: %s", file.Offset)
+		}
+		data, err := os.ReadFile(filepath.Join(bundleRoot, file.Name))
+		if err != nil {
+			return nil, fmt.Errorf("读取已校验固件段失败: %w", err)
+		}
+		images = append(images, espflasher.ImagePart{Data: data, Offset: uint32(offset)})
+	}
+	return images, nil
 }
 
 func redact(value string) string {

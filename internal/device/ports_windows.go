@@ -73,7 +73,7 @@ func ListPorts() ([]domain.DeviceInfo, error) {
 }
 
 func chipForMode(mode string) string {
-	// 扫描到端口不等于芯片验身；所有模式都必须等 esptool 读取后才填充芯片型号。
+	// 扫描到端口不等于芯片验身；所有模式都必须等纯 Go 烧录协议读取后才填充芯片型号。
 	return ""
 }
 

@@ -1,5 +1,15 @@
 # 决策日志 (decisions)
 
+## 2026-08-31 · 正式切换为纯 Go `espflasher`
+- 背景: 用户授权依赖准入并要求移除嵌套 Python 烧录助手；依赖治理查询此前未命中记录，但本轮以用户明确授权作为项目准入决定。
+- 决定: 固定 `tinygo.org/x/espflasher v0.8.1`，由 Go 后端直连 ESP32-S3 ROM/stub；手动 BOOT 后使用 `ResetNoReset`，写入仍只消费 manifest 固定的三段镜像。
+- 影响: 删除 esptool/PyInstaller、GPL helper、相关打包步骤和许可证副本；保留 SHA-256 下载校验、MAC 尾号确认、取消和关机再开机恢复门禁。
+
+## 2026-08-31 · ESP32-S3 采用 ROM 兼容验身与写入路径
+- 背景: 实板 COM 下载端口可连接，但旧版先执行 `chip-id`；ESP32-S3 对该子命令会读 MAC 后返回非零，界面因此误判为烧录工具故障。
+- 决定: 继续使用受控 esptool helper，但对 S3 只执行 `--no-stub read-mac` 和 `--no-stub flash-id`；写入同样以 `--no-stub` 执行 manifest 固定的三段镜像。
+- 否决的方案 & 原因: 本轮不直接引入 `tinygo.org/x/espflasher v0.8.1`。它是有前景的纯 Go 替代项，但依赖治理查询未发现已准入记录，不能以修复故障为由绕过依赖准入与实板回归。
+
 > 记"过程决策 + 为什么"。**追加,不删改**——下一棒最值钱的上下文。
 
 ## 2026-08-30 · 六平台原生构建，烧录证据按平台分层

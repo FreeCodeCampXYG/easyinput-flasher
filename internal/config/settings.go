@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 )
+
+const DefaultProxyURL = "http://127.0.0.1:1080"
 
 type Settings struct {
 	ProxyMode string   `json:"proxyMode"`
@@ -21,7 +24,8 @@ type Source struct {
 
 func DefaultSettings() Settings {
 	return Settings{
-		ProxyMode: "inherit",
+		ProxyMode: "custom",
+		ProxyURL:  DefaultProxyURL,
 		Sources:   []Source{{Repository: "FreeCodeCampXYG/easy-input-maker", Trusted: true, Enabled: true}},
 	}
 }
@@ -41,6 +45,11 @@ func Load() (Settings, error) {
 	var settings Settings
 	if err := json.Unmarshal(data, &settings); err != nil {
 		return Settings{}, fmt.Errorf("设置文件格式无效，未覆盖原文件: %w", err)
+	}
+	// 旧版没有设置页且默认继承系统代理；迁移到用户已指定的本地代理，避免 Release 列表静默为空。
+	if settings.ProxyMode == "inherit" && strings.TrimSpace(settings.ProxyURL) == "" {
+		settings.ProxyMode = "custom"
+		settings.ProxyURL = DefaultProxyURL
 	}
 	return settings, nil
 }
