@@ -1510,6 +1510,18 @@ code {
 }
 
 .theme-light .main-workspace { background: #f4f6f8; }
+.theme-light .button.secondary {
+  color: #334252;
+  background: #ffffff;
+  border-color: #cbd4de;
+}
+.theme-light .button.secondary:hover:not(:disabled) { background: #eaf0f5; }
+.theme-light .flash-stepper { background: #ffffff; }
+.theme-light .step { color: #6f7d8b; }
+.theme-light .step.active { color: #1d252d; }
+.theme-light .brand-lockup strong { color: #1d252d; }
+.theme-light .brand-lockup span { color: #596675; }
+.theme-light .sidebar-source strong { color: #344252; }
 .theme-light .nav-button:hover,
 .theme-light .nav-button.active,
 .theme-light .progress-panel,

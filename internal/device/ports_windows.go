@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"sort"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/FreeCodeCampXYG/easyinput-flasher/internal/domain"
@@ -63,6 +64,8 @@ func listPnPDevices() ([]pnpDevice, error) {
 	defer cancel()
 	// 正常模式可能是原生 USB HID，也可能是已配对的 EasyInput AI BLE；两者都只能作为 BOOT 前确认，不能代替芯片验身。
 	command := exec.CommandContext(ctx, "powershell.exe", "-NoProfile", "-NonInteractive", "-Command", "Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -match 'VID_303A&PID_100[16]' -or $_.FriendlyName -match 'EasyInput AI' } | Select-Object InstanceId,FriendlyName,Class | ConvertTo-Json -Compress")
+	// 设备刷新会频繁执行；隐藏系统 PowerShell 窗口，避免把只读 PnP 扫描打断用户的 BOOT 操作。
+	command.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	output, err := command.Output()
 	if err != nil {
 		return nil, err
