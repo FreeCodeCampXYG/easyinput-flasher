@@ -101,7 +101,12 @@ func (a *App) ScanDevices() ([]domain.DeviceInfo, error) {
 		a.devices[item.ID] = item
 	}
 	a.mu.Unlock()
-	a.setStatus(domain.FlashStageInspect, "已发现设备；进入下载模式后可读取芯片与 MAC", 10, false)
+	message := "未发现 EasyInput；请确认数据线、蓝牙连接或设备电源"
+	if len(devices) > 0 {
+		message = "已发现正常模式设备；短按并松开 BOOT 后刷新下载端口"
+	}
+	// 扫描阶段不属于写入任务，进度保持 0，避免前端把“检测设备”误显示为烧录中。
+	a.setStatus(domain.FlashStageIdle, message, 0, false)
 	a.appendLog("info", "设备", fmt.Sprintf("发现 %d 个设备候选", len(devices)))
 	return devices, nil
 }

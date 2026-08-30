@@ -35,6 +35,8 @@ import {
   ShieldCheck,
   Sparkles,
   Star,
+  Sun,
+  Moon,
   TerminalSquare,
   Usb,
   X,
@@ -93,9 +95,10 @@ const STAGE_INDEX: Record<FlashStage, number> = {
 };
 
 const isBusyStage = (stage: FlashStage) =>
-  stage === "detecting" || stage === "downloading" || stage === "flashing" || stage === "restarting";
+  stage === "downloading" || stage === "flashing" || stage === "restarting";
 
 function App() {
+  const [theme, setTheme] = useState<"dark" | "light">(() => window.localStorage.getItem("easyinput-flasher-theme") === "light" ? "light" : "dark");
   const [page, setPage] = useState<PageId>("flash");
   const [snapshot, setSnapshot] = useState<DashboardSnapshot>(demoSnapshot);
   const [selectedDeviceId, setSelectedDeviceId] = useState(demoSnapshot.selectedDeviceId ?? "");
@@ -256,8 +259,16 @@ function App() {
     }
   };
 
+  const toggleTheme = () => {
+    setTheme((current) => {
+      const next = current === "dark" ? "light" : "dark";
+      window.localStorage.setItem("easyinput-flasher-theme", next);
+      return next;
+    });
+  };
+
   return (
-    <div className="app-shell">
+    <div className={`app-shell theme-${theme}`}>
       <Sidebar
         page={page}
         open={sidebarOpen}
@@ -266,6 +277,8 @@ function App() {
           setPage(next);
           setSidebarOpen(false);
         }}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
       <main className="main-workspace">
         <button className="mobile-menu" type="button" onClick={() => setSidebarOpen(true)} aria-label="打开导航">
@@ -283,9 +296,11 @@ interface SidebarProps {
   open: boolean;
   onClose: () => void;
   onNavigate: (page: PageId) => void;
+  theme: "dark" | "light";
+  onToggleTheme: () => void;
 }
 
-function Sidebar({ page, open, onClose, onNavigate }: SidebarProps) {
+function Sidebar({ page, open, onClose, onNavigate, theme, onToggleTheme }: SidebarProps) {
   return (
     <>
       {open && <button className="sidebar-backdrop" type="button" onClick={onClose} aria-label="关闭导航" />}
@@ -307,6 +322,10 @@ function Sidebar({ page, open, onClose, onNavigate }: SidebarProps) {
             <NavButton key={item.id} item={item} active={page === item.id} onClick={() => onNavigate(item.id)} />
           ))}
         </nav>
+        <button className="theme-toggle" type="button" onClick={onToggleTheme}>
+          {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+          <span>{theme === "dark" ? "切换浅色主题" : "切换深色主题"}</span>
+        </button>
         <div className="sidebar-source">
           <Github size={16} />
           <div>

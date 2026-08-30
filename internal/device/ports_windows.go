@@ -61,7 +61,8 @@ func ListPorts() ([]domain.DeviceInfo, error) {
 func listPnPDevices() ([]pnpDevice, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	command := exec.CommandContext(ctx, "powershell.exe", "-NoProfile", "-NonInteractive", "-Command", "Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -match 'VID_303A&PID_100[16]' } | Select-Object InstanceId,FriendlyName,Class | ConvertTo-Json -Compress")
+	// 正常模式可能是原生 USB HID，也可能是已配对的 EasyInput AI BLE；两者都只能作为 BOOT 前确认，不能代替芯片验身。
+	command := exec.CommandContext(ctx, "powershell.exe", "-NoProfile", "-NonInteractive", "-Command", "Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -match 'VID_303A&PID_100[16]' -or $_.FriendlyName -match 'EasyInput AI' } | Select-Object InstanceId,FriendlyName,Class | ConvertTo-Json -Compress")
 	output, err := command.Output()
 	if err != nil {
 		return nil, err
@@ -85,6 +86,9 @@ func listPnPDevices() ([]pnpDevice, error) {
 }
 
 func friendlyPort(name string) string {
+	if strings.Contains(strings.ToLower(name), "easyinput") {
+		return "正常模式"
+	}
 	if index := strings.Index(strings.ToUpper(name), "(COM"); index >= 0 {
 		end := strings.Index(name[index:], ")")
 		if end > 0 {

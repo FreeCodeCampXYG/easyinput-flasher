@@ -1,21 +1,21 @@
 :root {
   font-family: Inter, "SF Pro Display", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
-  color: #1d252d;
-  background: #f4f6f8;
+  color: #f4f4f7;
+  background: #090a0d;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
-  --bg: #f4f6f8;
-  --sidebar: #edf1f5;
-  --surface: #ffffff;
-  --surface-2: #f7f9fb;
-  --surface-3: #eef2f6;
-  --line: #d8dee6;
-  --line-soft: #e7ebf0;
-  --text: #1d252d;
-  --muted: #596675;
-  --subtle: #788695;
+  --bg: #090a0d;
+  --sidebar: #0c0d11;
+  --surface: #101116;
+  --surface-2: #15161d;
+  --surface-3: #1b1c24;
+  --line: #25262f;
+  --line-soft: #1b1c23;
+  --text: #f4f4f7;
+  --muted: #9a9ba6;
+  --subtle: #6d6f7b;
   --accent: #19c99b;
-  --accent-soft: rgba(25, 201, 155, 0.16);
+  --accent-soft: rgba(25, 201, 155, 0.12);
   --blue: #5b8cff;
   --amber: #e8b348;
   --red: #ef6461;
@@ -116,7 +116,7 @@ select:focus-visible {
 
 .nav-caption {
   margin: 0 10px 7px;
-  color: #929ba6;
+  color: #5d5f6b;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -137,7 +137,7 @@ select:focus-visible {
   padding: 0 11px;
   border: 0;
   border-radius: 6px;
-  color: #c1c7cf;
+  color: #a6a7b0;
   background: transparent;
   cursor: pointer;
   text-align: left;
@@ -145,12 +145,12 @@ select:focus-visible {
 
 .nav-button:hover {
   color: #e7e8ed;
-  background: #272d35;
+  background: #15161c;
 }
 
 .nav-button.active {
   color: #f7f7fa;
-  background: #313943;
+  background: #202129;
 }
 
 .nav-button.active svg {
@@ -173,6 +173,32 @@ select:focus-visible {
   border: 1px solid var(--line);
   border-radius: 6px;
   color: var(--muted);
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 34px;
+  margin-top: auto;
+  margin-bottom: 8px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  background: transparent;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.theme-toggle:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.theme-toggle + .sidebar-source {
+  margin-top: 0;
 }
 
 .sidebar-source div {
@@ -1469,80 +1495,96 @@ code {
 }
 
 /* 明亮工作台覆盖：保留深色信息层级，但让长时间操作时的文字和状态更易读。 */
-.nav-button:hover,
-.nav-button.active,
-.progress-panel,
-.log-console,
-.update-status,
-.completion-panel,
-.feature-tag,
-.table-row:hover,
-.table-row.selected,
-.mobile-menu {
+.theme-light {
+  --bg: #f4f6f8;
+  --sidebar: #edf1f5;
+  --surface: #ffffff;
+  --surface-2: #f7f9fb;
+  --surface-3: #eef2f6;
+  --line: #d8dee6;
+  --line-soft: #e7ebf0;
+  --text: #1d252d;
+  --muted: #596675;
+  --subtle: #788695;
+  --accent-soft: rgba(25, 201, 155, 0.16);
+}
+
+.theme-light .main-workspace { background: #f4f6f8; }
+.theme-light .nav-button:hover,
+.theme-light .nav-button.active,
+.theme-light .progress-panel,
+.theme-light .log-console,
+.theme-light .update-status,
+.theme-light .completion-panel,
+.theme-light .feature-tag,
+.theme-light .table-row:hover,
+.theme-light .table-row.selected,
+.theme-light .mobile-menu {
   background: #ffffff;
 }
 
-.nav-button { color: #536170; }
-.nav-button:hover { color: #1d252d; }
-.nav-button.active { color: #17212a; box-shadow: inset 3px 0 0 var(--accent); }
-.nav-caption { color: #6f7d8b; }
-.sidebar-source { background: #f8fafc; }
-.eyebrow { color: #008d72; }
-.page-header h1,
-.section-heading,
-.release-title-row strong,
-.table-row strong,
-.source-main strong,
-.device-summary strong,
-.update-status strong,
-.about-intro h2,
-.timeline-content strong { color: #1d252d; }
-.page-header p,
-.field > span,
-.fact dd,
-.release-title-row span,
-.table-row span:not(.status-pill),
-.source-main span,
-.source-main p,
-.device-summary span:not(.status-pill),
-.update-status span,
-.timeline-date,
-.about-intro span { color: #596675; }
-.field select,
-.field input,
-.search-box input,
-.discover-search input { color: #1d252d; background: #ffffff; border-color: #cbd4de; }
-.field select:focus,
-.field input:focus,
-.search-box input:focus,
-.discover-search input:focus { border-color: #16ad8a; }
-.progress-meta span,
-.gate-row,
-.log-row,
-.feature-list > span:first-child { color: #596675; }
-.gate-row small,
-.log-row time,
-.log-row strong { color: #788695; }
-.log-console,
-.log-console .console-lines { background: #fbfcfd; }
-.log-row.detailed { border-bottom-color: #e7ebf0; }
-.status-bar { color: #596675; background: #e8edf2; border-top-color: #d0d8e1; }
-.status-version { color: #6f7d8b; }
-.safety-note { color: #765b16; background: #fff9e8; border-color: #ead59a; }
-.safety-note span { color: #866f3b; }
-.connection-warning { color: #705617; background: #fff8e4; border-color: #ead08b; }
-.connection-warning span { color: #806d42; }
-.inline-error { background: #fff0ef; border-color: #edb9b5; color: #a53f3a; }
-.filter-tabs button.active,
-.filter-tabs button:hover,
-.console-toolbar button:hover { color: #1d252d; background: #e8edf2; }
-.source-mark { background: #dce8fb; color: #31558e; }
-.source-mark.tone-2 { background: #d8f2e9; color: #16735d; }
-.source-mark.tone-3 { background: #f6e8c9; color: #80611f; }
-.completion-panel { border-color: #a8dfcf; background: #f0fbf7; }
-.feature-tag { border-color: #d5dce4; color: #4d5c6a; background: #f7f9fb; }
-.about-grid { border-color: #d8dee6; }
-.about-grid section { border-color: #e7ebf0; }
+.theme-light .nav-button { color: #536170; }
+.theme-light .nav-button:hover { color: #1d252d; }
+.theme-light .nav-button.active { color: #17212a; box-shadow: inset 3px 0 0 var(--accent); }
+.theme-light .nav-caption { color: #6f7d8b; }
+.theme-light .sidebar-source { background: #f8fafc; }
+.theme-light .theme-toggle { background: #f8fafc; }
+.theme-light .eyebrow { color: #008d72; }
+.theme-light .page-header h1,
+.theme-light .section-heading,
+.theme-light .release-title-row strong,
+.theme-light .table-row strong,
+.theme-light .source-main strong,
+.theme-light .device-summary strong,
+.theme-light .update-status strong,
+.theme-light .about-intro h2,
+.theme-light .timeline-content strong { color: #1d252d; }
+.theme-light .page-header p,
+.theme-light .field > span,
+.theme-light .fact dd,
+.theme-light .release-title-row span,
+.theme-light .table-row span:not(.status-pill),
+.theme-light .source-main span,
+.theme-light .source-main p,
+.theme-light .device-summary span:not(.status-pill),
+.theme-light .update-status span,
+.theme-light .timeline-date,
+.theme-light .about-intro span { color: #596675; }
+.theme-light .field select,
+.theme-light .field input,
+.theme-light .search-box input,
+.theme-light .discover-search input { color: #1d252d; background: #ffffff; border-color: #cbd4de; }
+.theme-light .field select:focus,
+.theme-light .field input:focus,
+.theme-light .search-box input:focus,
+.theme-light .discover-search input:focus { border-color: #16ad8a; }
+.theme-light .progress-meta span,
+.theme-light .gate-row,
+.theme-light .log-row,
+.theme-light .feature-list > span:first-child { color: #596675; }
+.theme-light .gate-row small,
+.theme-light .log-row time,
+.theme-light .log-row strong { color: #788695; }
+.theme-light .log-console,
+.theme-light .log-console .console-lines { background: #fbfcfd; }
+.theme-light .log-row.detailed { border-bottom-color: #e7ebf0; }
+.theme-light .status-bar { color: #596675; background: #e8edf2; border-top-color: #d0d8e1; }
+.theme-light .status-version { color: #6f7d8b; }
+.theme-light .safety-note { color: #765b16; background: #fff9e8; border-color: #ead59a; }
+.theme-light .safety-note span { color: #866f3b; }
+.theme-light .connection-warning { color: #705617; background: #fff8e4; border-color: #ead08b; }
+.theme-light .connection-warning span { color: #806d42; }
+.theme-light .inline-error { background: #fff0ef; border-color: #edb9b5; color: #a53f3a; }
+.theme-light .filter-tabs button.active,
+.theme-light .filter-tabs button:hover,
+.theme-light .console-toolbar button:hover { color: #1d252d; background: #e8edf2; }
+.theme-light .source-mark { background: #dce8fb; color: #31558e; }
+.theme-light .source-mark.tone-2 { background: #d8f2e9; color: #16735d; }
+.theme-light .source-mark.tone-3 { background: #f6e8c9; color: #80611f; }
+.theme-light .completion-panel { border-color: #a8dfcf; background: #f0fbf7; }
+.theme-light .feature-tag { border-color: #d5dce4; color: #4d5c6a; background: #f7f9fb; }
+.theme-light .about-grid { border-color: #d8dee6; }
+.theme-light .about-grid section { border-color: #e7ebf0; }
 
 @media (max-width: 1120px) {
   :root {
