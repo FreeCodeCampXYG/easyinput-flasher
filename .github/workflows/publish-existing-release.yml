@@ -1,0 +1,50 @@
+name: Publish Existing Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing tag to publish
+        required: true
+        type: string
+      source_run_id:
+        description: Completed Release workflow run containing package artifacts
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Download existing package artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        run: |
+          mkdir -p dist
+          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --pattern 'easyinput-flasher-*' --dir dist
+      - name: Verify package files
+        shell: bash
+        run: |
+          test -n "$(find dist -type f -name '*.sha256' -print -quit)"
+          find dist -type f -print
+      - name: Publish GitHub Release from existing artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: |
+          notes="docs/releases/${RELEASE_TAG}.md"
+          if [ -f "$notes" ]; then
+            gh release create "$RELEASE_TAG" dist/* --title "EasyInput Flasher ${RELEASE_TAG}" --notes-file "$notes"
+          else
+            gh release create "$RELEASE_TAG" dist/* --title "EasyInput Flasher ${RELEASE_TAG}" --generate-notes
+          fi

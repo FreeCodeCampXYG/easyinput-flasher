@@ -21,6 +21,7 @@
 - Wails 结构审计 13 PASS / 1 WARN；唯一 WARN 是首版不提供 NSIS 安装器，仅提供 Windows 便携 ZIP。
 - 当前电脑没有 Git Bash，Unix 打包脚本只能完成静态检查，须以 GitHub macOS/Linux native runner 作为实际验证证据。
 - `v0.1.0` Release 的 Linux 资产构建成功，macOS 两架构在默认 Python 上构建 PyInstaller helper 失败；`v0.1.1` 已修复并验证 macOS/Linux/Windows x64 资产，Windows ARM64 因 cryptography 缺少原生 OpenSSL wheel 失败，Release workflow 现改用 x64 Python/helper，待新 tag 验证。
+- `v0.1.3` 六个平台 package jobs 全部成功，publish job 因未 checkout 仓库而无法让 `gh release create --notes-file` 找到 `.git` 失败；新增 `publish-existing-release.yml` 复用该 run 的 artifacts 发布，避免重跑六平台构建。
 - 一次 Wails 重建曾因先前手动启动的同名可执行文件占用 `build/bin` 失败；精确结束该项目进程后重建成功。构建前必须退出正在运行的应用。
 
 ## 下一步
