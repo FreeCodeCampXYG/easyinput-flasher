@@ -354,6 +354,17 @@ select:focus-visible {
   border-radius: 6px;
 }
 
+.diagnostic-notice {
+  margin: -8px 0 18px;
+  padding: 10px 12px;
+  border: 1px solid;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.diagnostic-notice.success { color: #176d5a; background: #eefaf6; border-color: #9bdcc9; }
+.diagnostic-notice.error { color: #a53f3a; background: #fff0ef; border-color: #edb9b5; }
+
 .preview-strip {
   margin: -8px 0 20px;
   padding: 9px 12px;
@@ -1519,9 +1530,10 @@ code {
 .theme-light .flash-stepper { background: #ffffff; }
 .theme-light .step { color: #6f7d8b; }
 .theme-light .step.active { color: #1d252d; }
-.theme-light .brand-lockup strong { color: #1d252d; }
-.theme-light .brand-lockup span { color: #596675; }
-.theme-light .sidebar-source strong { color: #344252; }
+.theme-light .brand-lockup strong { color: #1d252d !important; }
+.theme-light .brand-lockup span { color: #596675 !important; }
+.theme-light .sidebar-source strong { color: #344252 !important; }
+.theme-light .sidebar-source span { color: #596675 !important; }
 .theme-light .nav-button:hover,
 .theme-light .nav-button.active,
 .theme-light .progress-panel,

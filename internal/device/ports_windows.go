@@ -27,20 +27,33 @@ func ListPorts() ([]domain.DeviceInfo, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	devices := make([]domain.DeviceInfo, 0)
 	seen := make(map[string]bool)
+	knownPorts := make(map[string]bool)
 
 	if pnp, err := listPnPDevices(); err == nil {
 		for _, item := range pnp {
 			id := item.InstanceID
-			if seen[id] {
-				continue
-			}
-			seen[id] = true
 			mode := "normal"
 			if strings.Contains(id, "PID_1001") {
 				mode = "download"
 			}
+			port := friendlyPort(item.FriendlyName)
+			if mode == "normal" && !strings.Contains(strings.ToLower(item.FriendlyName), "easyinput") {
+				// 复合 USB 的子接口不能证明它属于 EasyInput，避免把系统 HID/JTAG 误列成可操作设备。
+				continue
+			}
+			// 下载模式的复合 USB 接口会同时枚举 Composite/JTAG/串口；只保留实际 COM 端口，避免一块板显示多次。
+			if mode == "download" && port == "HID" {
+				continue
+			}
+			if seen[id] {
+				continue
+			}
+			seen[id] = true
+			if mode == "download" {
+				knownPorts[port] = true
+			}
 			devices = append(devices, domain.DeviceInfo{
-				ID: id, Port: friendlyPort(item.FriendlyName), Label: friendlyLabel(item.FriendlyName),
+				ID: id, Port: port, Label: friendlyLabel(item.FriendlyName),
 				Mode: mode, Chip: chipForMode(mode), ObservedAt: now,
 			})
 		}
@@ -50,7 +63,7 @@ func ListPorts() ([]domain.DeviceInfo, error) {
 		return nil, fmt.Errorf("读取设备列表失败: %w", err)
 	}
 	for _, port := range ports {
-		if seen[port] {
+		if seen[port] || knownPorts[port] {
 			continue
 		}
 		devices = append(devices, domain.DeviceInfo{ID: port, Port: port, Label: port, Mode: "download", ObservedAt: now})
@@ -60,10 +73,7 @@ func ListPorts() ([]domain.DeviceInfo, error) {
 }
 
 func chipForMode(mode string) string {
-	if mode == "download" {
-		return "ESP32-S3"
-	}
-	// 正常 HID/BLE 只证明设备在线；芯片型号必须等进入下载模式后由 esptool 读取。
+	// 扫描到端口不等于芯片验身；所有模式都必须等 esptool 读取后才填充芯片型号。
 	return ""
 }
 
@@ -71,7 +81,7 @@ func listPnPDevices() ([]pnpDevice, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	// 正常模式可能是原生 USB HID，也可能是已配对的 EasyInput AI BLE；两者都只能作为 BOOT 前确认，不能代替芯片验身。
-	command := exec.CommandContext(ctx, "powershell.exe", "-NoProfile", "-NonInteractive", "-Command", "Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -match 'VID_303A&PID_100[16]' -or $_.FriendlyName -match 'EasyInput AI' } | Select-Object InstanceId,FriendlyName,Class | ConvertTo-Json -Compress")
+	command := exec.CommandContext(ctx, "powershell.exe", "-NoProfile", "-NonInteractive", "-Command", "[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false); Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -match 'VID_303A&PID_100[16]' -or $_.FriendlyName -match 'EasyInput AI' } | Select-Object InstanceId,FriendlyName,Class | ConvertTo-Json -Compress")
 	// 设备刷新会频繁执行；隐藏系统 PowerShell 窗口，避免把只读 PnP 扫描打断用户的 BOOT 操作。
 	command.SysProcAttr = &syscall.SysProcAttr{HideWindow: true}
 	output, err := command.Output()

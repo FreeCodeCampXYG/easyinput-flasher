@@ -178,8 +178,8 @@ function adaptSnapshot(raw: RawDashboardSnapshot): DashboardSnapshot {
       functionalVerification: "pending",
     },
     logs: raw.status?.message
-      ? [{ id: `status-${raw.status.stage}`, time: "现在", level: stage === "failed" ? "error" : "info", scope: "状态", message: raw.status.message }, ...(raw.logs ?? []).map((item, index) => ({ id: `log-${index}`, time: item.time, level: adaptLogLevel(item.level), scope: item.scope, message: item.message }))]
-      : (raw.logs ?? []).map((item, index) => ({ id: `log-${index}`, time: item.time, level: adaptLogLevel(item.level), scope: item.scope, message: item.message })),
+      ? [{ id: `status-${raw.status.stage}`, time: "现在", level: stage === "failed" ? "error" : "info", scope: "状态", message: raw.status.message }, ...(raw.logs ?? []).map((item, index) => ({ id: `log-${index}`, time: formatLogTime(item.time), level: adaptLogLevel(item.level), scope: item.scope, message: item.message }))]
+      : (raw.logs ?? []).map((item, index) => ({ id: `log-${index}`, time: formatLogTime(item.time), level: adaptLogLevel(item.level), scope: item.scope, message: item.message })),
     network: {
       online: true,
       proxyMode: adaptProxyMode(raw.proxyMode),
@@ -192,6 +192,12 @@ function adaptSnapshot(raw: RawDashboardSnapshot): DashboardSnapshot {
 function adaptLogLevel(value: string): ActivityLog["level"] {
   if (value === "error" || value === "success" || value === "warning") return value;
   return "info";
+}
+
+function formatLogTime(value: string): string {
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return parsed.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
 }
 
 function adaptDevice(raw: RawDeviceInfo): DeviceInfo {
