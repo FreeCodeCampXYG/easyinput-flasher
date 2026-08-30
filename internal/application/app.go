@@ -73,7 +73,7 @@ func (a *App) ScanDevices() ([]domain.DeviceInfo, error) {
 		a.devices[item.ID] = item
 	}
 	a.mu.Unlock()
-	a.setStatus(domain.FlashStageInspect, "已发现串口候选；请在下载模式下识别设备", 10, false)
+	a.setStatus(domain.FlashStageInspect, "已发现设备；进入下载模式后可读取芯片与 MAC", 10, false)
 	return devices, nil
 }
 
@@ -83,6 +83,9 @@ func (a *App) InspectDevice(deviceID string) (domain.DeviceInfo, error) {
 	a.mu.RUnlock()
 	if !found {
 		return domain.DeviceInfo{}, fmt.Errorf("端口已变化，请重新扫描")
+	}
+	if item.Mode != "download" {
+		return item, fmt.Errorf("当前是正常 HID 模式；请开机短按并松开 BOOT 后重新扫描")
 	}
 	runner, err := flasher.NewRunner()
 	if err != nil {
