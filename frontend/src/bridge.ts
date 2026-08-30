@@ -163,7 +163,7 @@ function adaptSnapshot(raw: RawDashboardSnapshot): DashboardSnapshot {
     backendReady: true,
     appVersion: raw.appVersion || "dev",
     canFlash: Boolean(raw.status?.canFlash),
-    gateReasons: raw.status?.canFlash ? [] : [raw.status?.message || "等待后端签发写入许可"],
+    gateReasons: raw.status?.canFlash || stage === "idle" || stage === "detecting" ? [] : [raw.status?.message || "等待后端签发写入许可"],
     selectedDeviceId: raw.status?.deviceId || devices[0]?.id,
     selectedFirmwareId: raw.status?.firmwareId || releases[0]?.id,
     devices,

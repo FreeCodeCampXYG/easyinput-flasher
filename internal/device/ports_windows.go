@@ -41,7 +41,7 @@ func ListPorts() ([]domain.DeviceInfo, error) {
 			}
 			devices = append(devices, domain.DeviceInfo{
 				ID: id, Port: friendlyPort(item.FriendlyName), Label: friendlyLabel(item.FriendlyName),
-				Mode: mode, Chip: "ESP32-S3", ObservedAt: now,
+				Mode: mode, Chip: chipForMode(mode), ObservedAt: now,
 			})
 		}
 	}
@@ -57,6 +57,14 @@ func ListPorts() ([]domain.DeviceInfo, error) {
 	}
 	sort.Slice(devices, func(i, j int) bool { return devices[i].Port < devices[j].Port })
 	return devices, nil
+}
+
+func chipForMode(mode string) string {
+	if mode == "download" {
+		return "ESP32-S3"
+	}
+	// 正常 HID/BLE 只证明设备在线；芯片型号必须等进入下载模式后由 esptool 读取。
+	return ""
 }
 
 func listPnPDevices() ([]pnpDevice, error) {

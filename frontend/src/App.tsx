@@ -472,7 +472,7 @@ function FlashPage(props: FlashPageProps) {
               disabled={!device || busy || pendingAction === "inspect"}
             >
               {pendingAction === "inspect" ? <LoaderCircle size={15} className="spin" /> : <Cpu size={15} />}
-              {device?.mode === "normal" ? "先进入下载模式" : "读取信息"}
+              {device?.mode === "normal" ? "短按 BOOT 后刷新" : "读取信息"}
             </button>
             <StatusPill tone={device?.verified ? "success" : "neutral"}>
               {device?.verified ? <ShieldCheck size={15} /> : <Clock3 size={15} />}
