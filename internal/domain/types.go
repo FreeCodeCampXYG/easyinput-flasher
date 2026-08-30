@@ -79,4 +79,12 @@ type DashboardSnapshot struct {
 	Devices    []DeviceInfo      `json:"devices"`
 	Firmware   []FirmwareRelease `json:"firmware"`
 	ProxyMode  string            `json:"proxyMode"`
+	Logs       []ActivityLog     `json:"logs"`
+}
+
+type ActivityLog struct {
+	Time    string `json:"time"`
+	Level   string `json:"level"`
+	Scope   string `json:"scope"`
+	Message string `json:"message"`
 }

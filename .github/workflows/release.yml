@@ -121,18 +121,35 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
         with:
-          pattern: easyinput-flasher-*
-          path: dist
-          merge-multiple: true
+          persist-credentials: false
+          fetch-depth: 1
+      - name: Download package artifacts by platform
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          rm -rf dist publish
+          mkdir -p dist publish
+          for artifact in easyinput-flasher-windows-x64 easyinput-flasher-windows-arm64 easyinput-flasher-macos-intel easyinput-flasher-macos-arm64 easyinput-flasher-linux-x64 easyinput-flasher-linux-arm64; do
+            gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$artifact" --dir "dist/$artifact"
+          done
+      - name: Prepare unique release assets
+        shell: bash
+        run: |
+          find dist -type f \( -name '*.zip' -o -name '*.tar.gz' -o -name '*.sha256' \) -print0 |
+            while IFS= read -r -d '' file; do
+              base="$(basename "$file")"
+              cp "$file" "publish/$base"
+            done
+          test -n "$(find publish -type f -name '*.sha256' -print -quit)"
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           notes="docs/releases/${GITHUB_REF_NAME}.md"
           if [ -f "$notes" ]; then
-            gh release create "${GITHUB_REF_NAME}" dist/* --title "EasyInput Flasher ${GITHUB_REF_NAME}" --notes-file "$notes"
+            gh release create "${GITHUB_REF_NAME}" publish/* --title "EasyInput Flasher ${GITHUB_REF_NAME}" --notes-file "$notes"
           else
-            gh release create "${GITHUB_REF_NAME}" dist/* --title "EasyInput Flasher ${GITHUB_REF_NAME}" --generate-notes
+            gh release create "${GITHUB_REF_NAME}" publish/* --title "EasyInput Flasher ${GITHUB_REF_NAME}" --generate-notes
           fi

@@ -32,10 +32,11 @@ type App struct {
 	firmware []domain.FirmwareRelease
 	status   domain.FlashStatus
 	cancel   context.CancelFunc
+	logs     []domain.ActivityLog
 }
 
 func New(version string) *App {
-	return &App{version: version, devices: make(map[string]domain.DeviceInfo), status: newStatus(domain.FlashStageIdle, "等待检测设备", 0)}
+	return &App{version: version, devices: make(map[string]domain.DeviceInfo), status: newStatus(domain.FlashStageIdle, "等待检测设备", 0), logs: make([]domain.ActivityLog, 0, 64)}
 }
 
 func (a *App) Startup(ctx context.Context) {
@@ -59,7 +60,34 @@ func (a *App) GetDashboardSnapshot() domain.DashboardSnapshot {
 	for _, item := range a.devices {
 		devices = append(devices, item)
 	}
-	return domain.DashboardSnapshot{AppVersion: a.version, Status: a.status, Devices: devices, Firmware: a.firmware, ProxyMode: a.settings.ProxyMode}
+	return domain.DashboardSnapshot{AppVersion: a.version, Status: a.status, Devices: devices, Firmware: a.firmware, ProxyMode: a.settings.ProxyMode, Logs: append([]domain.ActivityLog(nil), a.logs...)}
+}
+
+// ExportDiagnostics 导出脱敏阶段日志到用户缓存目录，便于提交 Issue 而不暴露完整设备身份。
+func (a *App) ExportDiagnostics() (string, error) {
+	root, err := os.UserCacheDir()
+	if err != nil {
+		return "", err
+	}
+	directory := filepath.Join(root, "easyinput-flasher", "exports")
+	if err := os.MkdirAll(directory, 0o700); err != nil {
+		return "", err
+	}
+	a.mu.RLock()
+	logs := append([]domain.ActivityLog(nil), a.logs...)
+	a.mu.RUnlock()
+	path := filepath.Join(directory, "diagnostics-"+time.Now().UTC().Format("20060102-150405")+".log")
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o600)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+	for _, item := range logs {
+		if _, err := fmt.Fprintf(file, "%s [%s] %s: %s\n", item.Time, item.Level, item.Scope, item.Message); err != nil {
+			return "", err
+		}
+	}
+	return path, nil
 }
 
 func (a *App) ScanDevices() ([]domain.DeviceInfo, error) {
@@ -74,6 +102,7 @@ func (a *App) ScanDevices() ([]domain.DeviceInfo, error) {
 	}
 	a.mu.Unlock()
 	a.setStatus(domain.FlashStageInspect, "已发现设备；进入下载模式后可读取芯片与 MAC", 10, false)
+	a.appendLog("info", "设备", fmt.Sprintf("发现 %d 个设备候选", len(devices)))
 	return devices, nil
 }
 
@@ -110,6 +139,7 @@ func (a *App) InspectDevice(deviceID string) (domain.DeviceInfo, error) {
 	a.mu.Unlock()
 	// 仅在本轮下载模式验身成功后开放前端确认；StartFlash 仍会再次校验设备和确认文本。
 	a.setStatus(domain.FlashStageConfirm, "设备已验证，请核对 MAC 尾号后确认烧录", 20, true)
+	a.appendLog("success", "验身", "ESP32-S3 下载模式身份读取成功，等待人工确认")
 	return item, nil
 }
 
@@ -132,6 +162,7 @@ func (a *App) ListFirmware() ([]domain.FirmwareRelease, error) {
 	a.mu.Lock()
 	a.firmware = releases
 	a.mu.Unlock()
+	a.appendLog("info", "固件", fmt.Sprintf("读取到 %d 个带清单的公开 Release", len(releases)))
 	return releases, nil
 }
 
@@ -221,6 +252,15 @@ func (a *App) setStatus(stage domain.FlashStage, message string, progress int, c
 	a.mu.Lock()
 	a.status = domain.FlashStatus{Stage: stage, Message: message, Progress: progress, CanFlash: canFlash, UpdatedAt: time.Now().UTC()}
 	a.mu.Unlock()
+}
+
+func (a *App) appendLog(level, scope, message string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.logs = append(a.logs, domain.ActivityLog{Time: time.Now().UTC().Format(time.RFC3339), Level: level, Scope: scope, Message: message})
+	if len(a.logs) > 100 {
+		a.logs = a.logs[len(a.logs)-100:]
+	}
 }
 
 func newStatus(stage domain.FlashStage, message string, progress int) domain.FlashStatus {

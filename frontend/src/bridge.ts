@@ -1,4 +1,5 @@
 import type {
+  ActivityLog,
   DashboardSnapshot,
   DeviceInfo,
   FirmwareRelease,
@@ -51,6 +52,7 @@ interface RawDashboardSnapshot {
   devices: RawDeviceInfo[];
   firmware: RawFirmwareRelease[];
   proxyMode: string;
+  logs?: Array<{ time: string; level: string; scope: string; message: string }>;
 }
 
 interface WailsAppBridge {
@@ -61,6 +63,7 @@ interface WailsAppBridge {
   StartFlash?: (input: StartFlashInput) => Promise<void>;
   CancelFlash?: () => Promise<void>;
   CheckRecovery?: () => Promise<boolean>;
+  ExportDiagnostics?: () => Promise<string>;
 }
 
 declare global {
@@ -136,6 +139,17 @@ export async function checkRecovery(): Promise<DashboardSnapshot | undefined> {
   return refreshFrom(bridge);
 }
 
+export async function exportDiagnostics(): Promise<OperationResult> {
+  const operation = appBridge()?.ExportDiagnostics;
+  if (!operation) return { ok: false, message: "诊断导出后端尚未连接" };
+  try {
+    const path = await operation();
+    return { ok: true, message: `诊断日志已导出到 ${path}` };
+  } catch (error) {
+    return { ok: false, message: errorMessage(error) };
+  }
+}
+
 async function refreshFrom(bridge: WailsAppBridge): Promise<DashboardSnapshot | undefined> {
   if (!bridge.GetDashboardSnapshot) return undefined;
   return adaptSnapshot(await bridge.GetDashboardSnapshot());
@@ -164,8 +178,8 @@ function adaptSnapshot(raw: RawDashboardSnapshot): DashboardSnapshot {
       functionalVerification: "pending",
     },
     logs: raw.status?.message
-      ? [{ id: `status-${raw.status.stage}`, time: "现在", level: stage === "failed" ? "error" : "info", scope: "状态", message: raw.status.message }]
-      : [],
+      ? [{ id: `status-${raw.status.stage}`, time: "现在", level: stage === "failed" ? "error" : "info", scope: "状态", message: raw.status.message }, ...(raw.logs ?? []).map((item, index) => ({ id: `log-${index}`, time: item.time, level: adaptLogLevel(item.level), scope: item.scope, message: item.message }))]
+      : (raw.logs ?? []).map((item, index) => ({ id: `log-${index}`, time: item.time, level: adaptLogLevel(item.level), scope: item.scope, message: item.message })),
     network: {
       online: true,
       proxyMode: adaptProxyMode(raw.proxyMode),
@@ -173,6 +187,11 @@ function adaptSnapshot(raw: RawDashboardSnapshot): DashboardSnapshot {
     },
     cache: { items: 0, size: "按需缓存" },
   };
+}
+
+function adaptLogLevel(value: string): ActivityLog["level"] {
+  if (value === "error" || value === "success" || value === "warning") return value;
+  return "info";
 }
 
 function adaptDevice(raw: RawDeviceInfo): DeviceInfo {
