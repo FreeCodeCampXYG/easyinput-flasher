@@ -42,7 +42,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install Linux WebKit dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
       - name: Install frontend
         run: npm --prefix frontend ci
       - name: Check frontend
@@ -64,4 +64,6 @@ jobs:
         shell: bash
         run: |
           export PATH="$(go env GOPATH)/bin:$PATH"
-          wails build -clean -trimpath -platform "${{ matrix.platform }}" -ldflags "-X main.version=ci-${{ github.sha }}"
+          tags=""
+          if [[ "${{ runner.os }}" == "Linux" ]]; then tags="-tags webkit2_41"; fi
+          wails build -clean -trimpath -platform "${{ matrix.platform }}" $tags -ldflags "-X main.version=ci-${{ github.sha }}"

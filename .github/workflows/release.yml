@@ -53,7 +53,7 @@ jobs:
         run: test -f LICENSE && test -f THIRD_PARTY_NOTICES.md && test -f LICENSES/GPL-2.0-or-later.txt
       - name: Install Linux WebKit dependencies
         if: runner.os == 'Linux'
-        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libwebkit2gtk-4.1-dev
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
       - name: Install and build frontend
         run: |
           npm --prefix frontend ci
@@ -92,7 +92,7 @@ jobs:
           go install github.com/wailsapp/wails/v2/cmd/wails@v2.14.0
           version="${{ github.event_name == 'push' && github.ref_name || inputs.version }}"
           version="${version#v}"
-          wails build -clean -trimpath -platform "${{ matrix.platform }}" -ldflags "-X main.version=$version"
+          wails build -clean -trimpath -platform "${{ matrix.platform }}" -tags webkit2_41 -ldflags "-X main.version=$version"
           chmod +x scripts/package-unix.sh
           ./scripts/package-unix.sh "$version" "${{ matrix.platform }}"
       - uses: actions/upload-artifact@v4
