@@ -400,6 +400,20 @@ function FlashPage(props: FlashPageProps) {
         </div>
       )}
 
+      {device?.mode === "normal" && !device.verified && (
+        <div className="boot-instruction" role="status">
+          <div className="boot-instruction-icon"><Usb size={20} /></div>
+          <div>
+            <strong>已检测到正常 HID 设备</strong>
+            <span>请保持开发板开机，短按并松开一次 BOOT。等待端口重新出现后，点击“刷新下载端口”继续验身。</span>
+          </div>
+          <button className="button primary" type="button" onClick={onScan} disabled={pendingAction === "scan" || busy}>
+            <RefreshCw size={15} className={pendingAction === "scan" ? "spin" : ""} />
+            刷新下载端口
+          </button>
+        </div>
+      )}
+
       <FlashStepper stage={snapshot.progress.stage} />
 
       {busy && (
@@ -435,7 +449,7 @@ function FlashPage(props: FlashPageProps) {
               disabled={!device || busy || pendingAction === "inspect"}
             >
               {pendingAction === "inspect" ? <LoaderCircle size={15} className="spin" /> : <Cpu size={15} />}
-              读取信息
+              {device?.mode === "normal" ? "先进入下载模式" : "读取信息"}
             </button>
             <StatusPill tone={device?.verified ? "success" : "neutral"}>
               {device?.verified ? <ShieldCheck size={15} /> : <Clock3 size={15} />}

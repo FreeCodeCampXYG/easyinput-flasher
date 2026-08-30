@@ -416,6 +416,37 @@ select:focus-visible {
   border-color: rgba(232, 179, 72, 0.28);
 }
 
+.boot-instruction {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+  padding: 13px 15px;
+  border: 1px solid #9ccfc1;
+  border-radius: 6px;
+  background: #effaf6;
+}
+
+.boot-instruction-icon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 6px;
+  color: #087b64;
+  background: #d4f1e8;
+}
+
+.boot-instruction div:nth-child(2) {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.boot-instruction strong { color: #1e5147; font-size: 12px; }
+.boot-instruction span { color: #51776f; font-size: 10px; line-height: 1.5; }
+
 .connection-warning div {
   display: flex;
   flex-direction: column;
@@ -1700,6 +1731,14 @@ code {
 
   .connection-warning .progress-number {
     display: none;
+  }
+
+  .boot-instruction {
+    grid-template-columns: 34px minmax(0, 1fr);
+  }
+
+  .boot-instruction .button {
+    grid-column: 1 / -1;
   }
 
   .discover-search {
