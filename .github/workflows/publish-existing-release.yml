@@ -35,10 +35,15 @@ jobs:
       - name: Verify package files
         shell: bash
         run: |
-          find dist -mindepth 2 -maxdepth 2 -type f \( -name '*.zip' -o -name '*.tar.gz' -o -name '*.sha256' \) -exec mv -f -t dist {} +
-          find dist -mindepth 1 -type d -empty -delete
-          test -n "$(find dist -type f -name '*.sha256' -print -quit)"
-          find dist -type f -print
+          rm -rf publish
+          mkdir -p publish
+          find dist -type f \( -name '*.zip' -o -name '*.tar.gz' -o -name '*.sha256' \) -print0 |
+            while IFS= read -r -d '' file; do
+              base="$(basename "$file")"
+              if [ ! -e "publish/$base" ]; then cp "$file" "publish/$base"; fi
+            done
+          test -n "$(find publish -type f -name '*.sha256' -print -quit)"
+          find publish -type f -print
       - name: Publish GitHub Release from existing artifacts
         env:
           GH_TOKEN: ${{ github.token }}
@@ -46,7 +51,7 @@ jobs:
         run: |
           notes="docs/releases/${RELEASE_TAG}.md"
           if [ -f "$notes" ]; then
-            gh release create "$RELEASE_TAG" dist/* --title "EasyInput Flasher ${RELEASE_TAG}" --notes-file "$notes"
+            gh release create "$RELEASE_TAG" publish/* --title "EasyInput Flasher ${RELEASE_TAG}" --notes-file "$notes"
           else
-            gh release create "$RELEASE_TAG" dist/* --title "EasyInput Flasher ${RELEASE_TAG}" --generate-notes
+            gh release create "$RELEASE_TAG" publish/* --title "EasyInput Flasher ${RELEASE_TAG}" --generate-notes
           fi
