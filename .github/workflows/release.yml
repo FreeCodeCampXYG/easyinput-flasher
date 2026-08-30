@@ -92,7 +92,8 @@ jobs:
           go install github.com/wailsapp/wails/v2/cmd/wails@v2.14.0
           $version = if ('${{ github.event_name }}' -eq 'push') { '${{ github.ref_name }}'.TrimStart('v') } else { '${{ inputs.version }}' }
           wails build -clean -trimpath -platform "${{ matrix.platform }}" -ldflags "-X main.version=$version"
-          ./scripts/package-windows.ps1 -Version $version
+          $architecture = if ('${{ matrix.platform }}' -eq 'windows/arm64') { 'arm64' } else { 'x64' }
+          ./scripts/package-windows.ps1 -Version $version -Architecture $architecture
       - name: Build and package Unix
         if: runner.os != 'Windows'
         shell: bash

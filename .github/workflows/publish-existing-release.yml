@@ -30,8 +30,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
         run: |
+          rm -rf dist
           mkdir -p dist
-          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --pattern 'easyinput-flasher-*' --dir dist
+          for artifact in easyinput-flasher-windows-x64 easyinput-flasher-windows-arm64 easyinput-flasher-macos-intel easyinput-flasher-macos-arm64 easyinput-flasher-linux-x64 easyinput-flasher-linux-arm64; do
+            gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$artifact" --dir "dist/$artifact" || true
+          done
       - name: Verify package files
         shell: bash
         run: |
@@ -40,6 +43,10 @@ jobs:
           find dist -type f \( -name '*.zip' -o -name '*.tar.gz' -o -name '*.sha256' \) -print0 |
             while IFS= read -r -d '' file; do
               base="$(basename "$file")"
+              case "$file" in
+                *easyinput-flasher-windows-arm64*/*windows-x64-portable.zip) base="${base/windows-x64/windows-arm64}" ;;
+                *easyinput-flasher-windows-arm64*/*windows-x64-portable.zip.sha256) base="${base/windows-x64/windows-arm64}" ;;
+              esac
               if [ ! -e "publish/$base" ]; then cp "$file" "publish/$base"; fi
             done
           test -n "$(find publish -type f -name '*.sha256' -print -quit)"
@@ -50,7 +57,9 @@ jobs:
           RELEASE_TAG: ${{ inputs.release_tag }}
         run: |
           notes="docs/releases/${RELEASE_TAG}.md"
-          if [ -f "$notes" ]; then
+          if gh release view "$RELEASE_TAG" --json tagName >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" publish/* --clobber
+          elif [ -f "$notes" ]; then
             gh release create "$RELEASE_TAG" publish/* --title "EasyInput Flasher ${RELEASE_TAG}" --notes-file "$notes"
           else
             gh release create "$RELEASE_TAG" publish/* --title "EasyInput Flasher ${RELEASE_TAG}" --generate-notes
