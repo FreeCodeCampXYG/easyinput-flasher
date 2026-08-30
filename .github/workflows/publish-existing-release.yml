@@ -35,6 +35,8 @@ jobs:
       - name: Verify package files
         shell: bash
         run: |
+          find dist -mindepth 2 -type f -exec mv -t dist {} +
+          find dist -mindepth 1 -type d -empty -delete
           test -n "$(find dist -type f -name '*.sha256' -print -quit)"
           find dist -type f -print
       - name: Publish GitHub Release from existing artifacts
