@@ -223,7 +223,7 @@ function adaptFirmware(raw: RawFirmwareRelease): FirmwareRelease {
     // Go 后端以 repository@tag 定位下载目标；GitHub 数字 ID 仅用于列表展示，不能参与写入。
     id: `${raw.repository}@${raw.tag}`,
     repository: raw.repository,
-    sourceName: raw.name || raw.repository,
+    sourceName: releaseTitle(raw.name, raw.tag, raw.repository),
     tag: raw.tag,
     commit: manifest.commit || "下载后核对",
     publishedAt: raw.publishedAt ? raw.publishedAt.slice(0, 10) : "未知",
@@ -237,6 +237,16 @@ function adaptFirmware(raw: RawFirmwareRelease): FirmwareRelease {
     features: [],
     changelog: manifest.releaseNotes ? [manifest.releaseNotes] : [],
   };
+}
+
+function releaseTitle(name: string, tag: string, repository: string): string {
+  const fallback = repository.split("/").pop() || repository;
+  const title = name.trim();
+  if (!title) return fallback;
+  if (!tag || !title.endsWith(tag)) return title;
+  // Release 标题常把 tag 放在末尾；去掉重复版本后，选择框只保留一份可读标题。
+  const withoutTag = title.slice(0, -tag.length).trim().replace(/[·•|:/_-]+$/u, "").trim();
+  return withoutTag || fallback;
 }
 
 function adaptStage(stage?: string): FlashStage {

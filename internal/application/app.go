@@ -230,7 +230,9 @@ func (a *App) StartFlash(request FlashRequest) error {
 	if !ok {
 		return fmt.Errorf("固件选择无效")
 	}
-	a.setStatus(domain.FlashStageDownload, "正在下载并校验固件，请保持网络连接", 30, false)
+	// 状态文案使用清单绑定的 tag，避免 Release 自定义标题重复或误导版本判断。
+	firmwareLabel := selected.Tag
+	a.setFlashStatus(domain.FlashStageDownload, fmt.Sprintf("正在下载并校验固件：%s，请保持网络连接", firmwareLabel), 30, false, item.ID, request.FirmwareID)
 	a.mu.RLock()
 	settings := a.settings
 	a.mu.RUnlock()
@@ -244,19 +246,19 @@ func (a *App) StartFlash(request FlashRequest) error {
 	}
 	manifest, err := client.DownloadBundle(jobCtx, repository, tag, cacheRoot)
 	if err != nil {
-		a.setStatus(domain.FlashStageFailed, err.Error(), 0, false)
+		a.setFlashStatus(domain.FlashStageFailed, fmt.Sprintf("固件 %s 下载失败：%s", firmwareLabel, err), 0, false, item.ID, request.FirmwareID)
 		return err
 	}
-	a.setStatus(domain.FlashStageWrite, "烧录中，请勿拔出 USB 数据线、关闭电源或再次按 BOOT", 55, false)
+	a.setFlashStatus(domain.FlashStageWrite, fmt.Sprintf("正在烧录固件：%s；请勿拔出 USB 数据线、关闭电源或再次按 BOOT", firmwareLabel), 55, false, item.ID, request.FirmwareID)
 	runner, err := flasher.NewRunner()
 	if err != nil {
 		return err
 	}
 	if _, err := runner.Flash(jobCtx, item.Port, cacheRoot, manifest); err != nil {
-		a.setStatus(domain.FlashStageFailed, err.Error(), 0, false)
+		a.setFlashStatus(domain.FlashStageFailed, fmt.Sprintf("固件 %s 写入失败：%s", firmwareLabel, err), 0, false, item.ID, request.FirmwareID)
 		return err
 	}
-	a.setStatus(domain.FlashStageRecovery, "写入和工具校验完成。若手动进入下载模式，请关机后重新开机", 90, false)
+	a.setFlashStatus(domain.FlashStageRecovery, fmt.Sprintf("固件 %s 写入和工具校验完成。若手动进入下载模式，请关机后重新开机", firmwareLabel), 90, false, item.ID, request.FirmwareID)
 	return nil
 }
 
@@ -298,7 +300,20 @@ func (a *App) finishJob() {
 
 func (a *App) setStatus(stage domain.FlashStage, message string, progress int, canFlash bool) {
 	a.mu.Lock()
-	a.status = domain.FlashStatus{Stage: stage, Message: message, Progress: progress, CanFlash: canFlash, UpdatedAt: time.Now().UTC()}
+	status := domain.FlashStatus{Stage: stage, Message: message, Progress: progress, CanFlash: canFlash, UpdatedAt: time.Now().UTC()}
+	if stage == domain.FlashStageRecovery || stage == domain.FlashStageCompleted || stage == domain.FlashStageCancelled || stage == domain.FlashStageFailed {
+		// 收尾状态继续绑定本次目标，避免前端因 firmwareId 为空回退到列表第一项。
+		status.DeviceID = a.status.DeviceID
+		status.FirmwareID = a.status.FirmwareID
+	}
+	a.status = status
+	a.mu.Unlock()
+}
+
+func (a *App) setFlashStatus(stage domain.FlashStage, message string, progress int, canFlash bool, deviceID, firmwareID string) {
+	a.mu.Lock()
+	// 烧录状态保留设备和版本指针，避免异步轮询或失败日志无法确认实际写入目标。
+	a.status = domain.FlashStatus{Stage: stage, Message: message, Progress: progress, CanFlash: canFlash, DeviceID: deviceID, FirmwareID: firmwareID, UpdatedAt: time.Now().UTC()}
 	a.mu.Unlock()
 }
 

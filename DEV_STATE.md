@@ -32,6 +32,26 @@
 - 已回读 `firmware-v0.2.3-main`：公开 Release、Actions 成功，包含 bootloader、partition-table、application、manifest 和 SHA256SUMS。
 - manifest 核对通过：`board=easyinput-v2`、`chip=esp32s3`、`idfVersion=5.5.5`、`commit=846114041ed7df6dfb393cb939798c30ea491b1f`，三段偏移符合烧录器合同；当前只验证了 Release/清单层，尚未完成桌面端下载、实板写入和 HID 恢复。
 
+## 2026-08-31：固件下拉标题去重
+
+- 前端对 Release 标题末尾重复的 tag 做显示层归一化，避免出现 `EasyInput Firmware firmware-v0.2.3-main · firmware-v0.2.3-main`；底层 `repository@tag` 标识和选择逻辑不变。
+- 验证：前端 `typecheck`、生产构建和 `git diff --check` 通过；尚未推送或重新打包。
+
+## 2026-08-31：烧录状态显示目标版本
+
+- 后端下载、写入、失败和恢复状态现在携带选中的 `firmwareId`，并在状态文案中明确显示 manifest 绑定的 tag；异步轮询时仍能确认实际目标版本。
+- 验证：Go config/firmware/flasher 测试、`go vet ./...`、前端 typecheck/build 和差异检查通过；application 测试执行仍受本机 Windows `Access is denied` 限制，尚未推送或重新打包。
+
+## 2026-08-31：完成状态保留实际固件版本
+
+- 修复 `CheckRecovery` 完成状态清空 `firmwareId` 的问题；恢复、完成、取消和失败状态会继承本次烧录目标，前端不会再因空值回退到列表第一项 main。
+- 验证：Go config/firmware/flasher 测试、`go vet ./...`、前端 typecheck、差异检查通过；尚未提交、推送或重新打包。
+
+## 2026-08-31：固件摘要卡片跟随浅色主题
+
+- 为 `.firmware-summary`、Release 元数据和完整性提示补充浅色主题覆盖，避免切换皮肤后仍保留深色卡片背景和低对比文字。
+- 验证：前端 typecheck、生产构建和 `git diff --check` 通过；尚未提交、推送或重新打包。
+
 ## 已知边界
 
 - `FreeCodeCampXYG/easy-input-maker` 已有 `firmware-v0.2.1` 的受信 manifest Release；新版桌面包尚待实板验证下载、写入和恢复结果。

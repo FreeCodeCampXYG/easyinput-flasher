@@ -1528,6 +1528,7 @@ code {
 }
 .theme-light .button.secondary:hover:not(:disabled) { background: #eaf0f5; }
 .theme-light .flash-stepper { background: #ffffff; }
+.theme-light .firmware-summary { background: #ffffff; border-color: #d8dee6; }
 .theme-light .step { color: #6f7d8b; }
 .theme-light .step.active { color: #1d252d; }
 .theme-light .brand-lockup strong { color: #1d252d !important; }
@@ -1574,6 +1575,8 @@ code {
 .theme-light .update-status span,
 .theme-light .timeline-date,
 .theme-light .about-intro span { color: #596675; }
+.theme-light .release-metadata span,
+.theme-light .checksum-line { color: #596675; }
 .theme-light .field select,
 .theme-light .field input,
 .theme-light .search-box input,
