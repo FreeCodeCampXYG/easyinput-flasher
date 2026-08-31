@@ -41,6 +41,7 @@ macOS 包在未使用 Apple Developer ID 签名和 notarization 前会被系统�
 - [架构](docs/ARCHITECTURE.md)
 - [本地开发与构建](docs/BUILDING.md)
 - [发布流程](docs/RELEASING.md)
+- [固件发布规范](docs/FIRMWARE_PUBLISHING.md)
 - [故障排查](docs/TROUBLESHOOTING.md)
 - [变更日志](CHANGELOG.md)
 

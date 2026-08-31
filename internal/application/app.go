@@ -211,6 +211,16 @@ func (a *App) StartFlash(request FlashRequest) error {
 		a.mu.Unlock()
 		return fmt.Errorf("确认文本不匹配")
 	}
+	selected, found := findFirmware(a.firmware, request.FirmwareID)
+	if !found {
+		a.mu.Unlock()
+		return fmt.Errorf("固件选择已过期，请刷新固件列表后重试")
+	}
+	// 写入权限由后端按本轮受信列表签发，避免 Wails 调用绕过前端的社区来源提示。
+	if !selected.Trusted {
+		a.mu.Unlock()
+		return fmt.Errorf("该固件来源尚未审核，不能写入设备")
+	}
 	jobCtx, cancel := context.WithCancel(a.ctx)
 	a.cancel = cancel
 	a.mu.Unlock()
@@ -248,6 +258,15 @@ func (a *App) StartFlash(request FlashRequest) error {
 	}
 	a.setStatus(domain.FlashStageRecovery, "写入和工具校验完成。若手动进入下载模式，请关机后重新开机", 90, false)
 	return nil
+}
+
+func findFirmware(items []domain.FirmwareRelease, id string) (domain.FirmwareRelease, bool) {
+	for _, item := range items {
+		if item.Repository+"@"+item.Tag == id {
+			return item, true
+		}
+	}
+	return domain.FirmwareRelease{}, false
 }
 
 func (a *App) CheckRecovery() (bool, error) {

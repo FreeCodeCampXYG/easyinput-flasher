@@ -706,7 +706,7 @@ function LibraryPage({
           <div className={`table-row firmware-table-grid ${selectedId === release.id ? "selected" : ""}`} key={release.id}>
             <div className="primary-cell"><strong>{release.sourceName}</strong><span>{release.repository} · {release.tag}</span></div>
             <div><strong>{release.board}</strong><span>{release.chip} · {release.idfVersion}</span></div>
-            <div><StatusPill tone={release.trusted && release.checksumVerified ? "success" : "warning"}>{release.trusted ? <ShieldCheck size={14} /> : <ShieldAlert size={14} />}{release.trusted ? "已校验" : "需审核"}</StatusPill></div>
+            <div><StatusPill tone={release.trusted ? "success" : "warning"}>{release.trusted ? <ShieldCheck size={14} /> : <ShieldAlert size={14} />}{release.trusted ? "来源受信" : "需审核"}</StatusPill></div>
             <div><strong>{release.publishedAt}</strong><span>{release.commit}</span></div>
             <button className="icon-button" type="button" onClick={() => onSelect(release.id)} aria-label={`选择 ${release.tag}`}><ChevronRight size={17} /></button>
           </div>

@@ -13,6 +13,12 @@ import (
 	"github.com/FreeCodeCampXYG/easyinput-flasher/internal/domain"
 )
 
+var expectedFlashFiles = map[string]string{
+	"bootloader.bin":          "0x0",
+	"partition-table.bin":     "0x8000",
+	"easy_input_keyboard.bin": "0x10000",
+}
+
 // ParseManifest 只接受固定板型和芯片，防止社区来源的通用描述绕过硬件合同。
 func ParseManifest(data []byte) (domain.FirmwareManifest, error) {
 	var manifest domain.FirmwareManifest
@@ -28,7 +34,8 @@ func ParseManifest(data []byte) (domain.FirmwareManifest, error) {
 	}
 	seen := make(map[string]bool, len(manifest.Files))
 	for _, file := range manifest.Files {
-		if file.Name == "" || file.Offset == "" || len(file.SHA256) != 64 || file.Size <= 0 || seen[file.Name] {
+		expectedOffset, knownFile := expectedFlashFiles[file.Name]
+		if !knownFile || file.Offset != expectedOffset || len(file.SHA256) != 64 || file.Size <= 0 || seen[file.Name] {
 			return manifest, fmt.Errorf("固件清单包含无效文件记录")
 		}
 		seen[file.Name] = true

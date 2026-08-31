@@ -27,6 +27,11 @@
 - 发布矩阵已扩展为 Windows x64/ARM64、macOS Intel/Apple Silicon、Linux x64/ARM64；每个平台原生构建 Wails，烧录协议编译进主程序，并生成归档、SHA-256 和构建溯源。
 - 自有代码采用 PolyForm Noncommercial 1.0.0，版权归 StarLine；固件、`espflasher` 和其他依赖的上游许可证已在 `THIRD_PARTY_NOTICES.md` 分开记录。
 
+## 2026-08-31：官方 main 固件 Release 已发布
+
+- 已回读 `firmware-v0.2.3-main`：公开 Release、Actions 成功，包含 bootloader、partition-table、application、manifest 和 SHA256SUMS。
+- manifest 核对通过：`board=easyinput-v2`、`chip=esp32s3`、`idfVersion=5.5.5`、`commit=846114041ed7df6dfb393cb939798c30ea491b1f`，三段偏移符合烧录器合同；当前只验证了 Release/清单层，尚未完成桌面端下载、实板写入和 HID 恢复。
+
 ## 已知边界
 
 - `FreeCodeCampXYG/easy-input-maker` 已有 `firmware-v0.2.1` 的受信 manifest Release；新版桌面包尚待实板验证下载、写入和恢复结果。
@@ -44,7 +49,6 @@
 
 ## 下一步
 
-1. 在 GitHub Actions 完成六平台 CI 与 Release 演练，验证纯 Go 烧录器已随各平台主程序编译且包内无外部 helper。
-2. 推送 Maker 的 manifest 工作流后，以 `firmware-v*` 完成首次云端固件发布。
-3. 在真实 Windows 和 EasyInput V2.0 上验证设备验身、写入、取消、恢复 HID 与功能边界。
-4. 审查第三方 notices 后，按 Git 治理提交、推送、标注 `v0.1.0` 与创建桌面端 Release。
+1. 在 Maker `main` 合入固件发布 workflow/manifest 脚本，并创建绑定 main SHA 的 `firmware-v-main-*` Release。
+2. 在烧录器新包中验证官方 main 基线显示、下载哈希、受信门禁和实板恢复 HID。
+3. 后续再实现精确 GitHub Release URL 导入与逐版本社区审批，不开放分支、裸 bin 或任意 URL。
