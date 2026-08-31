@@ -4,9 +4,9 @@ EasyInput Flasher 是 EasyInput V2.0 的桌面烧录工具。它从受信 GitHub
 
 它不在电脑上编译固件、不上传设备数据、不执行 OTA，也不会默认擦除 Flash。
 
-![固件版本选择界面](docs/images/firmware-selection.png)
+![设备检测与烧录流程界面](docs/images/device-detection.png)
 
-> 图中只展示公开 Release 的版本选择界面。实际写入目标始终以界面和运行状态中显示的 manifest tag 为准。
+> 图中展示设备检测、身份核对和烧录恢复流程。实际写入目标始终以界面和运行状态中显示的 manifest tag 为准。
 
 ## 下载安装
 
