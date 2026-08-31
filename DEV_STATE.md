@@ -58,6 +58,7 @@
 - Issue 改为类型/模块/平台/优先级分流，新增社区固件来源和问题模板；PR 自动按变更路径标注模块，并校验描述含验证说明。
 - 新增 CODEOWNERS、CodeQL、维护者 `automerge` 标签触发的原生自动合并和可选 Codex 审核。Codex 仅在仓库配置 `OPENAI_API_KEY` 后提供建议，不能批准或直接合并代码。
 - 待远端完成标签创建、分支保护、auto-merge 设置和首次 CI 回读；本机 application 测试仍受 Windows `Access is denied` 执行限制。
+- 远端已创建分类标签，启用 squash-only、自动删分支、原生 auto-merge 与 `main` 分支保护；首次 CodeQL 因 Go 不支持 `build-mode: none` 失败，已改为 Go autobuild / JS buildless 并升级 Action v4，待推送回读。
 
 ## 已知边界
 
