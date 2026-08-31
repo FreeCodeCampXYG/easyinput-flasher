@@ -1,0 +1,12 @@
+name: Question
+description: 使用、兼容性或贡献方式的提问
+title: "[Question]: "
+labels: ["type: question", "status: needs-triage"]
+body:
+  - type: textarea
+    id: question
+    attributes:
+      label: 你的问题
+      description: 说明所用 flasher 版本、平台和已查阅的文档。
+    validations:
+      required: true

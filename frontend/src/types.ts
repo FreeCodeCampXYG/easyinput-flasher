@@ -53,6 +53,13 @@ export interface FirmwareRelease {
   changelog: string[];
 }
 
+export interface FirmwareSourceAudit {
+  repository: string;
+  validReleases: number;
+  ready: boolean;
+  checks: Array<{ name: string; passed: boolean; message: string }>;
+}
+
 export interface FlashProgress {
   stage: FlashStage;
   percent: number;

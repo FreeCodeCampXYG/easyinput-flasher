@@ -195,6 +195,68 @@ func (a *App) ListFirmware() ([]domain.FirmwareRelease, error) {
 	return releases, nil
 }
 
+// AuditFirmwareSource 在添加社区来源前检查 Release 与自动发布契约；审计过程不会写入设备或设置文件。
+func (a *App) AuditFirmwareSource(value string) (domain.FirmwareSourceAudit, error) {
+	repository, err := config.NormalizeRepository(value)
+	if err != nil {
+		return domain.FirmwareSourceAudit{}, err
+	}
+	a.mu.RLock()
+	settings := a.settings
+	a.mu.RUnlock()
+	client, err := firmware.NewGitHubClient(settings)
+	if err != nil {
+		return domain.FirmwareSourceAudit{}, err
+	}
+	audit, err := client.AuditSource(a.ctx, repository)
+	if err != nil {
+		a.appendLog("warning", "固件来源", repository+": "+err.Error())
+		return audit, err
+	}
+	a.appendLog("info", "固件来源", fmt.Sprintf("%s 审计完成：%d 个可烧录 Release", repository, audit.ValidReleases))
+	return audit, nil
+}
+
+// TrustFirmwareSource 仅在用户确认且来源已有完整 Release 后持久化信任，避免把搜索结果直接变成写入权限。
+func (a *App) TrustFirmwareSource(value, confirmation string) error {
+	repository, err := config.NormalizeRepository(value)
+	if err != nil {
+		return err
+	}
+	if confirmation != "信任来源 "+repository {
+		return fmt.Errorf("确认文本不匹配")
+	}
+	audit, err := a.AuditFirmwareSource(repository)
+	if err != nil {
+		return err
+	}
+	if !audit.Ready {
+		return fmt.Errorf("该仓库没有完整的可烧录 Release，不能加入来源")
+	}
+	a.mu.Lock()
+	settings := a.settings
+	found := false
+	for index := range settings.Sources {
+		if settings.Sources[index].Repository == repository {
+			settings.Sources[index].Enabled = true
+			settings.Sources[index].Trusted = true
+			found = true
+			break
+		}
+	}
+	if !found {
+		settings.Sources = append(settings.Sources, config.Source{Repository: repository, Trusted: true, Enabled: true})
+	}
+	if err := config.Save(settings); err != nil {
+		a.mu.Unlock()
+		return err
+	}
+	a.settings = settings
+	a.mu.Unlock()
+	a.appendLog("success", "固件来源", repository+" 已由用户确认并加入受信来源")
+	return nil
+}
+
 func (a *App) StartFlash(request FlashRequest) error {
 	a.mu.Lock()
 	if a.cancel != nil {

@@ -36,6 +36,19 @@ type FirmwareRelease struct {
 	Trusted     bool             `json:"trusted"`
 }
 
+type FirmwareSourceCheck struct {
+	Name    string `json:"name"`
+	Passed  bool   `json:"passed"`
+	Message string `json:"message"`
+}
+
+type FirmwareSourceAudit struct {
+	Repository    string                `json:"repository"`
+	ValidReleases int                   `json:"validReleases"`
+	Ready         bool                  `json:"ready"`
+	Checks        []FirmwareSourceCheck `json:"checks"`
+}
+
 type DeviceInfo struct {
 	ID         string `json:"id"`
 	Port       string `json:"port"`

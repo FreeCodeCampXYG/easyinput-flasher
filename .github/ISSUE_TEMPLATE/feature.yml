@@ -1,7 +1,7 @@
 name: Feature request
 description: 提议属于桌面烧录器边界的新能力
 title: "[Feature]: "
-labels: [enhancement]
+labels: ["type: enhancement", "status: needs-triage"]
 body:
   - type: textarea
     id: problem

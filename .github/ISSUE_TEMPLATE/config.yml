@@ -1,1 +1,8 @@
 blank_issues_enabled: false
+contact_links:
+  - name: 使用说明与故障排查
+    url: https://github.com/FreeCodeCampXYG/easyinput-flasher#第一次烧录
+    about: 请先确认 BOOT、版本选择和恢复启动流程。
+  - name: 安全问题私下报告
+    url: https://github.com/FreeCodeCampXYG/easyinput-flasher/security/policy
+    about: 请勿公开提交凭据、设备完整标识或可被利用的安全问题。

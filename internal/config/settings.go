@@ -22,6 +22,19 @@ type Source struct {
 	Enabled    bool   `json:"enabled"`
 }
 
+func NormalizeRepository(value string) (string, error) {
+	repository := strings.TrimSpace(value)
+	repository = strings.TrimPrefix(repository, "https://github.com/")
+	repository = strings.TrimPrefix(repository, "http://github.com/")
+	repository = strings.TrimSuffix(repository, ".git")
+	repository = strings.Trim(repository, "/")
+	parts := strings.Split(repository, "/")
+	if len(parts) != 2 || parts[0] == "" || parts[1] == "" || strings.ContainsAny(repository, " \\?#") {
+		return "", fmt.Errorf("仓库格式应为 owner/repository")
+	}
+	return repository, nil
+}
+
 func DefaultSettings() Settings {
 	return Settings{
 		ProxyMode: "custom",

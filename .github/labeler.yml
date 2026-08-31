@@ -1,0 +1,22 @@
+"area: frontend":
+  - changed-files:
+      - any-glob-to-any-file: "frontend/**"
+"area: flashing":
+  - changed-files:
+      - any-glob-to-any-file: "internal/application/**"
+      - any-glob-to-any-file: "internal/flasher/**"
+"area: firmware-source":
+  - changed-files:
+      - any-glob-to-any-file: "internal/firmware/**"
+      - any-glob-to-any-file: "internal/config/**"
+"area: device-detection":
+  - changed-files:
+      - any-glob-to-any-file: "internal/device/**"
+"area: release-ci":
+  - changed-files:
+      - any-glob-to-any-file: ".github/**"
+      - any-glob-to-any-file: "scripts/**"
+"area: docs":
+  - changed-files:
+      - any-glob-to-any-file: "**/*.md"
+      - any-glob-to-any-file: "docs/**"

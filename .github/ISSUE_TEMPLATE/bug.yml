@@ -1,7 +1,7 @@
 name: Bug report
 description: 报告桌面端、设备识别、烧录或恢复问题
 title: "[Bug]: "
-labels: [bug]
+labels: ["type: bug", "status: needs-triage"]
 body:
   - type: markdown
     attributes:
@@ -16,6 +16,13 @@ body:
     id: platform
     attributes:
       label: Windows 版本与架构
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: 问题位置
+      options: [设备检测, 固件下载或校验, 烧录与恢复, 界面, 文档, 其他]
     validations:
       required: true
   - type: textarea

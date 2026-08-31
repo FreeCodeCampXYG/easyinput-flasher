@@ -1,0 +1,7 @@
+# 高风险写入、发布和协作规则必须由仓库维护者审核。
+/internal/application/ @FreeCodeCampXYG
+/internal/firmware/ @FreeCodeCampXYG
+/internal/flasher/ @FreeCodeCampXYG
+/.github/ @FreeCodeCampXYG
+/scripts/ @FreeCodeCampXYG
+/docs/FIRMWARE_PUBLISHING.md @FreeCodeCampXYG

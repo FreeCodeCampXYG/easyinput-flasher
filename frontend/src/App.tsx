@@ -47,12 +47,14 @@ import {
   cancelFlash,
   checkRecovery,
   checkForUpdates,
+  auditFirmwareSource,
   getDashboardSnapshot,
   inspectDevice,
   exportDiagnostics,
   listFirmware,
   scanDevices,
   startFlash,
+  trustFirmwareSource,
 } from "./bridge";
 import { demoSnapshot } from "./demo-data";
 import type {
@@ -61,6 +63,7 @@ import type {
   DeviceInfo,
   FirmwareFeature,
   FirmwareRelease,
+  FirmwareSourceAudit,
   FlashStage,
   PageId,
 } from "./types";
@@ -223,7 +226,7 @@ function App() {
           />
         );
       case "discover":
-        return <DiscoverPage />;
+        return <DiscoverPage onFirmwareChanged={applySnapshot} />;
       case "devices":
         return <DevicesPage devices={snapshot.devices} logs={snapshot.logs} onExport={exportDiagnostics} />;
       case "updates":
@@ -716,29 +719,56 @@ function LibraryPage({
   );
 }
 
-function DiscoverPage() {
-  const sources = [
-    { name: "EasyInput Maker", repo: "FreeCodeCampXYG/easy-input-maker", stars: "官方", releases: 3, trusted: true },
-    { name: "Community Layouts", repo: "community/easyinput-layouts", stars: "128", releases: 8, trusted: false },
-    { name: "Macro Profiles", repo: "makers/easyinput-macro-pack", stars: "86", releases: 5, trusted: false },
-  ];
+function DiscoverPage({ onFirmwareChanged }: { onFirmwareChanged: (snapshot?: DashboardSnapshot) => void }) {
+  const [repository, setRepository] = useState("");
+  const [audit, setAudit] = useState<FirmwareSourceAudit>();
+  const [confirmation, setConfirmation] = useState("");
+  const [notice, setNotice] = useState<string>();
+  const [pending, setPending] = useState<"audit" | "trust">();
+  const expected = audit ? `信任来源 ${audit.repository}` : "";
+
+  const auditSource = async () => {
+    setPending("audit");
+    setNotice(undefined);
+    setAudit(undefined);
+    try {
+      setAudit(await auditFirmwareSource(repository));
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "仓库审计失败");
+    } finally {
+      setPending(undefined);
+    }
+  };
+
+  const trustSource = async () => {
+    if (!audit || confirmation.trim() !== expected) return;
+    setPending("trust");
+    setNotice(undefined);
+    try {
+      onFirmwareChanged(await trustFirmwareSource(audit.repository, confirmation.trim()));
+      setNotice(`${audit.repository} 已加入来源；现在可在固件库刷新并选择 Release`);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "添加来源失败");
+    } finally {
+      setPending(undefined);
+    }
+  };
+
   return (
     <div className="page">
-      <PageHeader eyebrow="GitHub 公开生态" title="发现" description="按仓库、Topic 与 Release 浏览兼容项目；收藏不代表受信，烧录前仍需清单校验。" />
-      <div className="discover-search"><Search size={19} /><input placeholder="搜索 GitHub 仓库或粘贴 Release 链接" /><button type="button" className="button primary">搜索</button></div>
-      <div className="filter-tabs"><button className="active">精选</button><button>最新发布</button><button>最多收藏</button><button>兼容 V2</button></div>
-      <section className="source-list">
-        {sources.map((source, index) => (
-          <article className="source-row" key={source.repo}>
-            <div className={`source-mark tone-${index + 1}`}><Github size={21} /></div>
-            <div className="source-main"><strong>{source.name}</strong><span>{source.repo}</span><p>{index === 0 ? "EasyInput V2.0 公共固件与 Host Action 基线。" : "社区提供的扩展固件来源，使用前需要审核发布清单和目标板型。"}</p></div>
-            <div className="source-stats"><span><Star size={14} />{source.stars}</span><span><PackageCheck size={14} />{source.releases} 个版本</span></div>
-            <StatusPill tone={source.trusted ? "success" : "neutral"}>{source.trusted ? <ShieldCheck size={14} /> : <Clock3 size={14} />}{source.trusted ? "官方受信" : "未审核"}</StatusPill>
-            <button className="icon-button" type="button" aria-label={`收藏 ${source.name}`}><Star size={17} /></button>
-          </article>
-        ))}
-      </section>
-      <div className="safety-note"><ShieldAlert size={19} /><div><strong>发现结果不会自动获得写入权限</strong><span>社区项目必须声明 ESP32-S3、EasyInput V2 板型、分区偏移与 SHA-256；不完整的 Release 只能收藏和查看。</span></div></div>
+      <PageHeader eyebrow="GitHub 公开生态" title="添加社区固件来源" description="输入 owner/repository，软件会先只读检查 Release 和自动构建合同，再由你决定是否信任。" />
+      <div className="discover-search"><Github size={19} /><input value={repository} onChange={(event) => setRepository(event.target.value)} placeholder="例如 FreeCodeCampXYG/easy-input-maker" /><button type="button" className="button primary" onClick={auditSource} disabled={!repository.trim() || Boolean(pending)}>{pending === "audit" ? <LoaderCircle size={16} className="spin" /> : <Search size={16} />}检查仓库</button></div>
+      {notice && <div className="inline-error">{notice}</div>}
+      {audit && <section className="source-list">
+        <article className="source-row">
+          <div className="source-mark tone-2"><Github size={21} /></div>
+          <div className="source-main"><strong>{audit.repository}</strong><span>{audit.validReleases} 个可烧录 Release</span><p>通过后会显示在固件库；每次写入仍会重新校验 manifest 和 SHA-256。</p></div>
+          <StatusPill tone={audit.ready ? "success" : "warning"}>{audit.ready ? <ShieldCheck size={14} /> : <ShieldAlert size={14} />}{audit.ready ? "可申请信任" : "暂不可用"}</StatusPill>
+        </article>
+        <div className="gate-list">{audit.checks.map((check) => <GateRow key={check.name} passed={check.passed} pending={!check.passed} text={`${check.name}：${check.message}`} />)}</div>
+        {audit.ready && <label className="field"><span>输入 “{expected}” 后加入来源</span><input value={confirmation} onChange={(event) => setConfirmation(event.target.value)} placeholder={expected} /><button type="button" className="button primary" onClick={trustSource} disabled={confirmation.trim() !== expected || pending === "trust"}>{pending === "trust" ? <LoaderCircle size={16} className="spin" /> : <ShieldCheck size={16} />}信任并加入</button></label>}
+      </section>}
+      <div className="safety-note"><ShieldAlert size={19} /><div><strong>只添加完整 Release，不烧录分支或裸 bin</strong><span>缺少三段镜像时，按 README 的图文教程为 Fork 补 GitHub Actions 自动编译与 manifest 发布流程。</span></div></div>
     </div>
   );
 }

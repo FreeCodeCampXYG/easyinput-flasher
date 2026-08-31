@@ -1,0 +1,29 @@
+name: Firmware source proposal
+description: 申请评估社区或 Fork 的可烧录 GitHub Release
+title: "[Firmware source]: "
+labels: ["type: firmware-source", "area: firmware-source", "status: needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: 仅接受公开 GitHub Release 与标准 firmware-manifest.json。请勿提供裸 bin、分支名、私有 URL、Token 或设备完整 MAC。
+  - type: input
+    id: release_url
+    attributes:
+      label: GitHub Release URL
+      placeholder: https://github.com/owner/repository/releases/tag/firmware-v1.0.0
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: 构建 commit
+      description: 与 manifest 中的 commit 一致。
+    validations:
+      required: true
+  - type: textarea
+    id: change_scope
+    attributes:
+      label: 功能变化与已验证范围
+      description: 请分别写构建、写入、HID 恢复和实际功能验证。
+    validations:
+      required: true

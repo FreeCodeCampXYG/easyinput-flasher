@@ -1,7 +1,7 @@
 name: Build report
 description: 报告本地或 GitHub Actions 构建问题
 title: "[Build]: "
-labels: [build]
+labels: ["type: build", "area: release-ci", "status: needs-triage"]
 body:
   - type: input
     id: target

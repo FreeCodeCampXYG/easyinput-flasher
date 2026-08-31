@@ -52,6 +52,13 @@
 - 为 `.firmware-summary`、Release 元数据和完整性提示补充浅色主题覆盖，避免切换皮肤后仍保留深色卡片背景和低对比文字。
 - 验证：前端 typecheck、生产构建和 `git diff --check` 通过；尚未提交、推送或重新打包。
 
+## 2026-08-31：开源共建入口与审核门禁
+
+- README 重写为下载、BOOT、身份读取、版本选择、写入、恢复和社区固件发布的可操作流程，并加入脱敏的 UI 选择截图；新增贡献指南。
+- Issue 改为类型/模块/平台/优先级分流，新增社区固件来源和问题模板；PR 自动按变更路径标注模块，并校验描述含验证说明。
+- 新增 CODEOWNERS、CodeQL、维护者 `automerge` 标签触发的原生自动合并和可选 Codex 审核。Codex 仅在仓库配置 `OPENAI_API_KEY` 后提供建议，不能批准或直接合并代码。
+- 待远端完成标签创建、分支保护、auto-merge 设置和首次 CI 回读；本机 application 测试仍受 Windows `Access is denied` 执行限制。
+
 ## 已知边界
 
 - `FreeCodeCampXYG/easy-input-maker` 已有 `firmware-v0.2.1` 的受信 manifest Release；新版桌面包尚待实板验证下载、写入和恢复结果。

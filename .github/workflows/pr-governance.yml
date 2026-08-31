@@ -1,0 +1,31 @@
+name: PR Governance
+
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  label:
+    name: Apply scope labels
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/labeler@v7
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+  readiness:
+    name: Check contribution contract
+    runs-on: ubuntu-24.04
+    if: github.event.pull_request.draft == false
+    steps:
+      - name: Require a completed PR description
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          test -n "$PR_BODY" || { echo "请填写 PR 模板后再请求审核。"; exit 1; }
+          printf '%s' "$PR_BODY" | grep -q '## 验证' || { echo "PR 缺少验证说明。"; exit 1; }

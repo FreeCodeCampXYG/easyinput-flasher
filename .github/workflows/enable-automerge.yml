@@ -1,0 +1,23 @@
+name: Enable Reviewed Auto-merge
+
+on:
+  pull_request_target:
+    types: [labeled]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  enable:
+    name: Queue approved PR
+    if: github.event.label.name == 'automerge' && github.event.pull_request.draft == false
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Enable GitHub native auto-merge
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+        run: |
+          # 标签只能由有写入权限的维护者添加；分支规则仍负责审批和 CI 门禁。
+          gh pr merge "$PR_URL" --auto --squash --delete-branch

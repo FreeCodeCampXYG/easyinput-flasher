@@ -3,6 +3,7 @@ import type {
   DashboardSnapshot,
   DeviceInfo,
   FirmwareRelease,
+  FirmwareSourceAudit,
   FlashStage,
   OperationResult,
   StartFlashInput,
@@ -60,6 +61,8 @@ interface WailsAppBridge {
   ScanDevices?: () => Promise<RawDeviceInfo[]>;
   InspectDevice?: (deviceId: string) => Promise<RawDeviceInfo>;
   ListFirmware?: () => Promise<RawFirmwareRelease[]>;
+  AuditFirmwareSource?: (repository: string) => Promise<FirmwareSourceAudit>;
+  TrustFirmwareSource?: (repository: string, confirmation: string) => Promise<void>;
   StartFlash?: (input: StartFlashInput) => Promise<void>;
   CancelFlash?: () => Promise<void>;
   CheckRecovery?: () => Promise<boolean>;
@@ -101,6 +104,20 @@ export async function listFirmware(): Promise<DashboardSnapshot | undefined> {
   const bridge = appBridge();
   if (!bridge?.ListFirmware) return undefined;
   await bridge.ListFirmware();
+  return refreshFrom(bridge);
+}
+
+export async function auditFirmwareSource(repository: string): Promise<FirmwareSourceAudit> {
+  const operation = appBridge()?.AuditFirmwareSource;
+  if (!operation) throw new Error("固件来源审计后端尚未连接");
+  return operation(repository);
+}
+
+export async function trustFirmwareSource(repository: string, confirmation: string): Promise<DashboardSnapshot | undefined> {
+  const bridge = appBridge();
+  if (!bridge?.TrustFirmwareSource) throw new Error("固件来源设置后端尚未连接");
+  await bridge.TrustFirmwareSource(repository, confirmation);
+  await bridge.ListFirmware?.();
   return refreshFrom(bridge);
 }
 

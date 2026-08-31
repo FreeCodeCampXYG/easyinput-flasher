@@ -1,0 +1,48 @@
+name: Optional Codex Review
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  review:
+    name: Codex advisory review
+    runs-on: ubuntu-24.04
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+    outputs:
+      feedback: ${{ steps.codex.outputs.final-message }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/pull/${{ github.event.pull_request.number }}/merge
+          persist-credentials: false
+      - name: Review only the pull request diff
+        id: codex
+        if: github.event.pull_request.draft == false && env.OPENAI_API_KEY != ''
+        uses: openai/codex-action@v1
+        with:
+          openai-api-key: ${{ env.OPENAI_API_KEY }}
+          permission-profile: ":workspace"
+          prompt: |
+            Review only this pull request diff for bugs, security risks, firmware-writing boundary regressions, missing tests, and documentation mismatches.
+            Do not modify files. Be concise. Clearly mark blocking findings as P0 or P1, and say "No blocking findings" when appropriate.
+      - name: Post advisory feedback
+        if: steps.codex.outputs.final-message != ''
+        uses: actions/github-script@v7
+        env:
+          CODEX_FEEDBACK: ${{ steps.codex.outputs.final-message }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body: `## Codex advisory review\n\n${process.env.CODEX_FEEDBACK}\n\n> This is advisory feedback only. It is not an approval and cannot merge this PR.`,
+            });
