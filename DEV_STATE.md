@@ -79,6 +79,7 @@
 - macOS 新增专用设备扫描：串口标记为下载候选，`ioreg`/`system_profiler` 识别 EasyInput USB/Bluetooth 正常模式；恢复检查不再固定返回失败。
 - 下载端口仍由 ESP32-S3 ROM 读取芯片与 MAC 进行最终验身，未放宽 manifest、哈希和人工确认门禁。
 - 已通过 macOS amd64/arm64 Go 测试二进制交叉编译、Windows 本机定向测试、`go vet` 与 `git diff --check`；未在真实 Mac 或实板上验证。
+- 已提交 `0e8e578` 并推送 `main`，创建并推送 annotated tag `v0.1.14`；Release/CI/CodeQL Actions 已启动，等待六平台结果。
 
 ## 当前目标
 
