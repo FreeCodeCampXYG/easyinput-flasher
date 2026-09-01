@@ -1550,6 +1550,18 @@ code {
 .diagnostic-tip { display: grid; gap: 3px; margin: 10px 0; padding: 8px 9px; border-left: 2px solid var(--accent); background: var(--accent-soft); }
 .diagnostic-tip strong { color: var(--text); font-size: 10px; }
 .diagnostic-tip span { color: var(--muted); font-size: 10px; line-height: 1.55; }
+.diagnostic-steps { margin: 10px 0; padding: 8px 9px; border: 1px solid var(--line-soft); background: var(--surface); }
+.diagnostic-steps strong { color: var(--text); font-size: 10px; }
+.diagnostic-steps ol { margin: 5px 0 0; padding-left: 18px; color: var(--muted); font-size: 10px; line-height: 1.65; }
+.signal-checker { margin: 10px 0; padding: 9px; border: 1px solid rgba(91, 140, 255, .24); background: rgba(91, 140, 255, .06); }
+.signal-checker > strong { display: block; color: var(--text); font-size: 10px; }
+.signal-checker > span { display: block; margin: 4px 0 8px; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.signal-checker > div { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 5px; }
+.signal-checker button { min-height: 30px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); background: var(--surface); cursor: pointer; font-size: 10px; }
+.signal-checker button:hover { border-color: var(--blue); color: var(--text); }
+.signal-checker button.is-observed { color: #06352a; background: var(--accent); border-color: var(--accent); animation: signal-pop .28s ease-out; }
+.signal-checker button small { display: block; margin-top: 1px; font-size: 8px; opacity: .75; }
+@keyframes signal-pop { 50% { transform: scale(1.08); } }
 .diagnostic-card.passed { border-color: rgba(25, 201, 155, .45); }
 .diagnostic-card.blocked { border-color: rgba(221, 169, 64, .45); }
 .diagnostic-actions { display: flex; gap: 7px; }
@@ -1739,6 +1751,7 @@ code {
 .theme-light .diagnostic-firmware-tip { background: #f2f6ff; border-color: #cbd8f1; }
 .theme-light .diagnostic-firmware-notes span { background: #ffffff; border-color: #d5deef; }
 .theme-light .diagnostic-tip { background: #eefaf6; }
+.theme-light .signal-checker { background: #f2f6ff; border-color: #cbd8f1; }
 .theme-light .diagnostic-card strong,
 .theme-light .diagnostic-empty strong { color: #1d252d; }
 .theme-light .diagnostic-card > div:first-child span,

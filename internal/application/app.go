@@ -226,7 +226,11 @@ func (a *App) RunHardwareDiagnostics(deviceID string) (domain.HardwareDiagnostic
 		{Key: "audio_in", Label: "I2S 麦克风", Evidence: "用户观察", Status: "pending", Detail: "运行态显示输入电平或录音回波"},
 		{Key: "audio_out", Label: "I2S 功放/扬声器", Evidence: "用户观察", Status: "pending", Detail: "播放测试音并确认无明显杂音"},
 		{Key: "power", Label: "VIN / CHRG / VBAT", Evidence: "固件读数", Status: "unknown", Detail: "需运行态固件读取；VBAT 只能估算电压，不能等同剩余电量"},
-		{Key: "usb_ble", Label: "USB / BLE HID", Evidence: "系统枚举", Status: "pending", Detail: "恢复正常模式后确认 HID 枚举与输入"},
+		{Key: "battery_capacity", Label: "电池剩余容量", Evidence: "固件估算", Status: "unknown", Detail: "板上没有独立电量计；只能由固件结合电压、负载和校准估算，不能从烧录器直接证明百分比"},
+		{Key: "bluetooth", Label: "蓝牙 BLE", Evidence: "运行态观察", Status: "pending", Detail: "正常开机后确认 EasyInput BLE 广播、配对和输入；具体设备名与协议由固件决定"},
+		{Key: "wifi", Label: "Wi-Fi", Evidence: "运行态观察", Status: "pending", Detail: "运行支持 Wi-Fi 的固件后确认扫描或联网结果；板载无线存在不等于当前固件已启用"},
+		{Key: "usb_hid", Label: "USB HID", Evidence: "系统枚举", Status: "pending", Detail: "恢复正常模式后确认 USB HID 枚举，并在文本框中验证真实按键输入"},
+		{Key: "usb_ble", Label: "USB / BLE HID", Evidence: "系统枚举", Status: "pending", Detail: "恢复正常模式后确认 HID 枚举与输入；Flasher 不读取 HID 私有按键事件"},
 	}
 	if item.Mode != "download" {
 		for i := range items {
