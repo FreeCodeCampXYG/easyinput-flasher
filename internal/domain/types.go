@@ -116,6 +116,21 @@ type HardwareDiagnosticItem struct {
 }
 
 type HardwareDiagnosticSnapshot struct {
-	DeviceID string                   `json:"deviceId"`
-	Items    []HardwareDiagnosticItem `json:"items"`
+	DeviceID  string                    `json:"deviceId"`
+	Items     []HardwareDiagnosticItem  `json:"items"`
+	Telemetry *HardwareDiagnosticTelemetry `json:"telemetry,omitempty"`
+}
+
+type HardwareDiagnosticTelemetry struct {
+	Supported bool `json:"supported"`
+	Firmware string `json:"firmware"`
+	LastInput string `json:"lastInput"`
+	InputEvents uint32 `json:"inputEvents"`
+	EncoderSteps uint32 `json:"encoderSteps"`
+	BatteryMV uint16 `json:"batteryMv"`
+	BatteryPercent uint8 `json:"batteryPercent"`
+	BatteryState string `json:"batteryState"`
+	VIN int `json:"vin"`
+	Charge int `json:"charge"`
+	LEDGPIO int `json:"ledGpio"`
 }

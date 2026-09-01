@@ -8,6 +8,7 @@ import type {
   OperationResult,
   StartFlashInput,
   HardwareDiagnosticSnapshot,
+  HardwareDiagnosticTelemetry,
 } from "./types";
 
 interface RawFlashStatus {
@@ -76,6 +77,7 @@ interface WailsAppBridge {
   CheckRecovery?: () => Promise<boolean>;
   ExportDiagnostics?: () => Promise<string>;
   RunHardwareDiagnostics?: (deviceId: string) => Promise<HardwareDiagnosticSnapshot>;
+  ReadHardwareDiagnostics?: (deviceId: string) => Promise<HardwareDiagnosticTelemetry>;
 }
 
 declare global {
@@ -198,6 +200,12 @@ export async function exportDiagnostics(): Promise<OperationResult> {
 export async function runHardwareDiagnostics(deviceId: string): Promise<HardwareDiagnosticSnapshot> {
   const operation = appBridge()?.RunHardwareDiagnostics;
   if (!operation) throw new Error("硬件诊断后端尚未连接");
+  return operation(deviceId);
+}
+
+export async function readHardwareDiagnostics(deviceId: string): Promise<HardwareDiagnosticTelemetry> {
+  const operation = appBridge()?.ReadHardwareDiagnostics;
+  if (!operation) throw new Error("硬件事件读取后端尚未连接");
   return operation(deviceId);
 }
 

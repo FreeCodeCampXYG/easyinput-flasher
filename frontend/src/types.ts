@@ -120,4 +120,5 @@ export interface OperationResult {
 }
 
 export interface HardwareDiagnosticItem { key: string; label: string; evidence: string; status: "passed" | "pending" | "blocked" | "unknown"; detail: string; }
-export interface HardwareDiagnosticSnapshot { deviceId: string; items: HardwareDiagnosticItem[]; }
+export interface HardwareDiagnosticTelemetry { supported: boolean; firmware: string; lastInput: string; inputEvents: number; encoderSteps: number; batteryMv: number; batteryPercent: number; batteryState: string; vin: number; charge: number; ledGpio: number; }
+export interface HardwareDiagnosticSnapshot { deviceId: string; items: HardwareDiagnosticItem[]; telemetry?: HardwareDiagnosticTelemetry; }

@@ -14,6 +14,7 @@
 | T02 | Sol worker | 用户 UI 参考与绑定契约 | `frontend/` | 静态 UI 覆盖烧录、固件、发现、日志与状态栏 |
 | T03 | Codex | Maker 现有构建工作流 | firmware manifest 与 Release 门禁 | 静态验证和 GitHub Actions 成功 |
 | T04 | 用户 + Codex | Windows 设备 | 实机验身、写入、恢复证据 | 不把写入成功误写为功能验证 |
+| T05 | Codex | Maker Vendor HID 状态报告 | 正常模式输入/旋钮/电源遥测读取 | 仅支持带 `diag` 状态的固件；真实 HID 回报待实板验证 |
 
 ## 实时进展 / 交接棒
 → 见 `flow/进展.md` 顶部(每棒收工在那追加一条:做了什么 / 为什么 / 产出路径 / 下一步)。

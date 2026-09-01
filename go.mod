@@ -3,6 +3,7 @@ module github.com/FreeCodeCampXYG/easyinput-flasher
 go 1.27.0
 
 require (
+	github.com/karalabe/hid v1.0.0
 	github.com/wailsapp/wails/v2 v2.14.0
 	go.bug.st/serial v1.8.0
 	tinygo.org/x/espflasher v0.8.1

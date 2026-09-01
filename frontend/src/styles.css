@@ -1538,6 +1538,9 @@ code {
 .diagnostic-firmware-tip strong { color: var(--text); font-size: 12px; }
 .diagnostic-firmware-tip span { color: var(--muted); font-size: 11px; line-height: 1.55; }
 .diagnostic-firmware-notes { display: flex; flex-wrap: wrap; gap: 6px; }
+.diagnostic-live { display: grid; gap: 4px; margin: 12px 0; padding: 11px 14px; border-left: 3px solid var(--blue); background: rgba(91, 140, 255, .08); }
+.diagnostic-live strong { color: var(--text); font-size: 11px; }
+.diagnostic-live span { color: var(--muted); font-size: 11px; }
 .diagnostic-firmware-notes span { padding: 4px 7px; border: 1px solid rgba(91, 140, 255, .2); color: var(--text); background: var(--surface); font-size: 10px; }
 .diagnostic-group-heading { display: flex; align-items: end; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .diagnostic-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -1749,6 +1752,7 @@ code {
 .theme-light .diagnostic-intro,
 .theme-light .diagnostic-summary { border-color: #d8dee6; background: #ffffff; }
 .theme-light .diagnostic-firmware-tip { background: #f2f6ff; border-color: #cbd8f1; }
+.theme-light .diagnostic-live { background: #f2f6ff; }
 .theme-light .diagnostic-firmware-notes span { background: #ffffff; border-color: #d5deef; }
 .theme-light .diagnostic-tip { background: #eefaf6; }
 .theme-light .signal-checker { background: #f2f6ff; border-color: #cbd8f1; }

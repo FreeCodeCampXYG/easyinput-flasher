@@ -253,8 +253,43 @@ func (a *App) RunHardwareDiagnostics(deviceID string) (domain.HardwareDiagnostic
 		items[0].Status, items[0].Detail = "passed", info.Chip
 		items[1].Status, items[1].Detail = "passed", fmt.Sprintf("厂商 0x%02X · 设备 0x%04X", info.FlashManufacturer, info.FlashDevice)
 	}
+	if item.Mode == "normal" {
+		ctx, cancel := context.WithTimeout(a.ctx, 3*time.Second)
+		telemetry, err := device.ReadHIDDiagnostics(ctx)
+		cancel()
+		if err == nil && telemetry.Supported {
+			for index := range items {
+				switch items[index].Key {
+				case "usb_hid":
+					items[index].Status = "passed"
+					items[index].Detail = "已读取正常模式 HID 状态；后续按键事件会更新输入计数"
+				case "usb_ble":
+					items[index].Status = "passed"
+					items[index].Detail = "已读取正常模式 BLE/HID 状态；具体功能仍以固件声明为准"
+				}
+			}
+			return domain.HardwareDiagnosticSnapshot{DeviceID: deviceID, Items: items, Telemetry: &domain.HardwareDiagnosticTelemetry{Supported: telemetry.Supported, Firmware: telemetry.Firmware, LastInput: telemetry.LastInput, InputEvents: telemetry.InputEvents, EncoderSteps: telemetry.EncoderSteps, BatteryMV: telemetry.BatteryMV, BatteryPercent: telemetry.BatteryPct, BatteryState: telemetry.BatteryState, VIN: telemetry.VIN, Charge: telemetry.Charge, LEDGPIO: telemetry.LEDGPIO}}, nil
+		}
+	}
 	a.appendLog("info", "硬件诊断", fmt.Sprintf("完成 %s 的自动验身与板级检查清单", item.Port))
 	return domain.HardwareDiagnosticSnapshot{DeviceID: deviceID, Items: items}, nil
+}
+
+// ReadHardwareDiagnostics 读取正常模式 HID 的最新遥测；只在用户进入诊断页轮询，避免常驻监听键盘输入。
+func (a *App) ReadHardwareDiagnostics(deviceID string) (domain.HardwareDiagnosticTelemetry, error) {
+	a.mu.RLock()
+	item, found := a.devices[deviceID]
+	a.mu.RUnlock()
+	if !found || item.Mode != "normal" {
+		return domain.HardwareDiagnosticTelemetry{}, fmt.Errorf("请先让设备正常开机并重新检测")
+	}
+	ctx, cancel := context.WithTimeout(a.ctx, 3*time.Second)
+	telemetry, err := device.ReadHIDDiagnostics(ctx)
+	cancel()
+	if err != nil {
+		return domain.HardwareDiagnosticTelemetry{}, err
+	}
+	return domain.HardwareDiagnosticTelemetry{Supported: telemetry.Supported, Firmware: telemetry.Firmware, LastInput: telemetry.LastInput, InputEvents: telemetry.InputEvents, EncoderSteps: telemetry.EncoderSteps, BatteryMV: telemetry.BatteryMV, BatteryPercent: telemetry.BatteryPct, BatteryState: telemetry.BatteryState, VIN: telemetry.VIN, Charge: telemetry.Charge, LEDGPIO: telemetry.LEDGPIO}, nil
 }
 
 func (a *App) InspectDevice(deviceID string) (domain.DeviceInfo, error) {

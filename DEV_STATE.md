@@ -1,5 +1,13 @@
 # EasyInput Flasher 开发状态
 
+## 2026-09-01：正常 HID 遥测读取与真实输入联动
+
+- 新增纯 Go HID 状态读取：复用 Maker 现有 Vendor HID `0x13` 状态请求和 `0x11/0x04` 分片回报，读取 `diag.last`、输入事件计数、旋钮步进、电池和供电状态。
+- 诊断页在正常模式轮询遥测；检测到输入事件计数或旋钮步进增加时，才把对应项目更新为真实事件已收到。没有 `diag` 的旧固件保持不支持自动遥测。
+- 新增 `github.com/karalabe/hid v1.0.0`，与现有 Studio 版本一致；未新增串口、WebHID 或常驻全局键盘监听。
+- 验证：Flasher Go 定向测试、go vet、前端 typecheck/build、Maker 状态测试通过；Flasher application 测试执行仍受 Windows `Access is denied` 拦截；真实 HID 回报和实板功能未验证。
+- Maker 状态请求新增 `diagnostics` 标志，仍复用原 16 字节请求和 512 字节响应预算；Flasher 请求该标志以稳定获取详细 `diag` 字段。
+
 ## 2026-09-01：用户学习排查动态观察台
 
 - 诊断页在没有专用固件协议的前提下增加 S1-S8 输入观察台：用户先按实体键并确认系统/固件真实反馈，再点击对应编号记录观察次数。

@@ -54,6 +54,7 @@ import {
   importLocalBundle,
   importFactoryBundle,
   runHardwareDiagnostics,
+  readHardwareDiagnostics,
   listFirmware,
   scanDevices,
   startFlash,
@@ -245,7 +246,7 @@ function App() {
       case "devices":
         return <DevicesPage devices={snapshot.devices} logs={snapshot.logs} onExport={exportDiagnostics} />;
       case "diagnostics":
-        return <DiagnosticsPage devices={snapshot.devices} releases={snapshot.releases} selectedFirmwareId={selectedFirmwareId} onSelectFirmware={setSelectedFirmwareId} onRun={runHardwareDiagnostics} />;
+        return <DiagnosticsPage devices={snapshot.devices} releases={snapshot.releases} selectedFirmwareId={selectedFirmwareId} onSelectFirmware={setSelectedFirmwareId} onRun={runHardwareDiagnostics} onRead={readHardwareDiagnostics} />;
       case "updates":
         return (
           <UpdatesPage
@@ -857,15 +858,39 @@ const BOARD_DIAGNOSTIC_STEPS: Record<string, string[]> = {
   usb_hid: ["先关机，再正常开机退出下载模式", "等待电脑重新枚举 USB HID", "打开文本框按一个已知有动作的按键，确认系统收到真实输入"],
 };
 
-function DiagnosticsPage({ devices, releases, selectedFirmwareId, onSelectFirmware, onRun }: { devices: DeviceInfo[]; releases: FirmwareRelease[]; selectedFirmwareId: string; onSelectFirmware: (id: string) => void; onRun: (deviceId: string) => Promise<HardwareDiagnosticSnapshot> }) {
+function DiagnosticsPage({ devices, releases, selectedFirmwareId, onSelectFirmware, onRun, onRead }: { devices: DeviceInfo[]; releases: FirmwareRelease[]; selectedFirmwareId: string; onSelectFirmware: (id: string) => void; onRun: (deviceId: string) => Promise<HardwareDiagnosticSnapshot>; onRead: (deviceId: string) => Promise<import("./types").HardwareDiagnosticTelemetry> }) {
   const [deviceId, setDeviceId] = useState(devices[0]?.id ?? "");
   const [report, setReport] = useState<HardwareDiagnosticSnapshot>();
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
-  const [observedInputs, setObservedInputs] = useState<Record<string, number>>({});
   const mark = (key: string, status: "passed" | "blocked") => setReport((current) => current ? { ...current, items: current.items.map((item) => item.key === key ? { ...item, status, detail: status === "passed" ? "用户已确认本项表现正常" : "用户标记为异常，请导出诊断并检查硬件" } : item) } : current);
   const run = async () => { if (!deviceId) return; setBusy(true); setNotice(""); try { setReport(await onRun(deviceId)); } catch (error) { setNotice(error instanceof Error ? error.message : "硬件诊断失败"); } finally { setBusy(false); } };
   const selected = devices.find((item) => item.id === deviceId);
+  useEffect(() => {
+    if (!report || selected?.mode !== "normal") return undefined;
+    let disposed = false;
+    const poll = async () => {
+      try {
+        const telemetry = await onRead(deviceId);
+        if (disposed) return;
+        setReport((current) => {
+          if (!current) return current;
+          const previous = current.telemetry;
+          const next = { ...current, telemetry };
+          if (previous && telemetry.inputEvents > previous.inputEvents) {
+            next.items = next.items.map((item) => item.key === "keys" && telemetry.lastInput.startsWith("KEY") ? { ...item, status: "passed", detail: `已收到真实输入事件：${telemetry.lastInput}` } : item);
+          }
+          if (previous && telemetry.encoderSteps > previous.encoderSteps) {
+            next.items = next.items.map((item) => item.key === "encoder" ? { ...item, status: "passed", detail: `已收到旋钮步进事件（累计 ${telemetry.encoderSteps}）` } : item);
+          }
+          return next;
+        });
+      } catch { /* 设备切换或 HID 暂不可读时保留上一份证据，下一轮继续尝试。 */ }
+    };
+    void poll();
+    const timer = window.setInterval(() => void poll(), 900);
+    return () => { disposed = true; window.clearInterval(timer); };
+  }, [deviceId, onRead, report, selected?.mode]);
   const groups = [
     { key: "auto", title: "自动验身", description: "只读取下载模式能证明的芯片与存储身份。", items: report?.items.filter((item) => item.evidence === "自动检测") ?? [] },
     { key: "operate", title: "用户操作", description: "按提示逐项操作；通过/异常均是用户确认，不是 ROM 自动结论。", items: report?.items.filter((item) => item.evidence === "用户操作") ?? [] },
@@ -879,7 +904,7 @@ function DiagnosticsPage({ devices, releases, selectedFirmwareId, onSelectFirmwa
     <div className="diagnostic-toolbar"><label className="field grow"><span>目标设备</span><select value={deviceId} onChange={(event) => { setDeviceId(event.target.value); setReport(undefined); }}><option value="">未发现 EasyInput 设备</option>{devices.map((item) => <option key={item.id} value={item.id}>{item.port} · {item.product} · {item.mode === "download" ? "下载模式" : item.mode === "normal" ? "正常 HID" : "待确认"}</option>)}</select></label><label className="field grow"><span>教学固件</span><select value={selectedFirmwareId} onChange={(event) => onSelectFirmware(event.target.value)}><option value="">未选择固件</option>{releases.map((release) => <option key={release.id} value={release.id}>{release.sourceName} · {release.tag}</option>)}</select></label><div className="diagnostic-legend"><span><CheckCircle2 size={14} />已通过</span><span><Clock3 size={14} />待操作</span><span><Info size={14} />待验证</span></div></div>
     {(() => { const firmware = releases.find((item) => item.id === selectedFirmwareId); return firmware ? <section className="diagnostic-firmware-tip"><div><strong>{firmware.sourceName} · {firmware.tag}</strong><span>{firmware.isFactory ? "Factory 恢复镜像：用于恢复出厂，不是普通升级。" : `适配 ${firmware.board} / ${firmware.chip}；具体功能以该版本清单和发布说明为准。`}</span></div><div className="diagnostic-firmware-notes">{(firmware.features.length ? firmware.features.map((feature) => feature.name) : firmware.changelog).slice(0, 4).map((text) => <span key={text}>{text}</span>)}</div></section> : null; })()}
     {notice && <div className="inline-error">{notice}</div>}
-    {!report ? <div className="diagnostic-empty"><Activity size={28} /><strong>{deviceId ? "点击“开始诊断”读取板级证据" : "先选择已识别的 EasyInput 设备"}</strong><span>不会扫描或写入无关设备；没有下载端口时，自动验身会明确停在 BOOT 引导，不会显示伪造芯片信息。</span></div> : <><div className="diagnostic-summary"><strong>本次诊断结果</strong><span>通过 {counts?.passed ?? 0} · 待操作 {counts?.pending ?? 0} · 阻断 {counts?.blocked ?? 0} · 待验证 {counts?.unknown ?? 0}</span></div><section className="diagnostic-groups">{groups.map((group) => <div className="diagnostic-group" key={group.key}><div className="diagnostic-group-heading"><div><strong>{group.title}</strong><span>{group.description}</span></div><span>{group.items.length} 项</span></div><div className="diagnostic-grid">{group.items.map((item) => <article className={`diagnostic-card ${item.status}`} key={item.key}><div className="diagnostic-card-heading"><div><strong>{item.label}</strong><span>{item.evidence}</span></div><StatusPill tone={item.status === "passed" ? "success" : item.status === "unknown" ? "neutral" : "warning"}>{item.status === "passed" ? "通过" : item.status === "blocked" ? "需先验身" : item.status === "unknown" ? "待验证" : "待操作"}</StatusPill></div><p>{item.detail}</p><div className="diagnostic-tip"><strong>怎么用</strong><span>{BOARD_DIAGNOSTIC_TIPS[item.key] ?? "请以当前固件说明和实板表现为准。"}</span></div>{item.key === "keys" && <div className="signal-checker"><strong>输入观察台</strong><span>按实体按键并确认真实反馈后，点对应编号记录一次观察；这里不会自动读取 HID。</span><div>{[1, 2, 3, 4, 5, 6, 7, 8].map((key) => <button type="button" className={observedInputs[`S${key}`] ? "is-observed" : ""} onClick={() => setObservedInputs((current) => ({ ...current, [`S${key}`]: (current[`S${key}`] ?? 0) + 1 }))} key={key}>S{key}<small>{observedInputs[`S${key}`] ?? 0}</small></button>)}</div></div>}{BOARD_DIAGNOSTIC_STEPS[item.key] && <div className="diagnostic-steps"><strong>测试步骤</strong><ol>{BOARD_DIAGNOSTIC_STEPS[item.key].map((step) => <li key={step}>{step}</li>)}</ol></div>}{item.status === "pending" && <div className="diagnostic-actions"><button type="button" className="button secondary" onClick={() => mark(item.key, "passed")}>标记通过</button><button type="button" className="button ghost" onClick={() => mark(item.key, "blocked")}>标记异常</button></div>}</article>)}</div></div>)}</section></>}
+    {!report ? <div className="diagnostic-empty"><Activity size={28} /><strong>{deviceId ? "点击“开始诊断”读取板级证据" : "先选择已识别的 EasyInput 设备"}</strong><span>不会扫描或写入无关设备；没有下载端口时，自动验身会明确停在 BOOT 引导，不会显示伪造芯片信息。</span></div> : <><div className="diagnostic-summary"><strong>本次诊断结果</strong><span>通过 {counts?.passed ?? 0} · 待操作 {counts?.pending ?? 0} · 阻断 {counts?.blocked ?? 0} · 待验证 {counts?.unknown ?? 0}</span></div>{report.telemetry?.supported && <div className="diagnostic-live"><strong>正在读取真实固件事件</strong><span>最近输入：{report.telemetry.lastInput || "等待按键或旋钮"} · 输入事件：{report.telemetry.inputEvents} · 旋钮步进：{report.telemetry.encoderSteps} · 电池：{report.telemetry.batteryMv} mV / 估算 {report.telemetry.batteryPercent}%</span></div>}<section className="diagnostic-groups">{groups.map((group) => <div className="diagnostic-group" key={group.key}><div className="diagnostic-group-heading"><div><strong>{group.title}</strong><span>{group.description}</span></div><span>{group.items.length} 项</span></div><div className="diagnostic-grid">{group.items.map((item) => <article className={`diagnostic-card ${item.status}`} key={item.key}><div className="diagnostic-card-heading"><div><strong>{item.label}</strong><span>{item.evidence}</span></div><StatusPill tone={item.status === "passed" ? "success" : item.status === "unknown" ? "neutral" : "warning"}>{item.status === "passed" ? "通过" : item.status === "blocked" ? "需先验身" : item.status === "unknown" ? "待验证" : "待操作"}</StatusPill></div><p>{item.detail}</p><div className="diagnostic-tip"><strong>怎么用</strong><span>{BOARD_DIAGNOSTIC_TIPS[item.key] ?? "请以当前固件说明和实板表现为准。"}</span></div>{BOARD_DIAGNOSTIC_STEPS[item.key] && <div className="diagnostic-steps"><strong>测试步骤</strong><ol>{BOARD_DIAGNOSTIC_STEPS[item.key].map((step) => <li key={step}>{step}</li>)}</ol></div>}{item.status === "pending" && <div className="diagnostic-actions"><button type="button" className="button secondary" onClick={() => mark(item.key, "passed")}>标记通过</button><button type="button" className="button ghost" onClick={() => mark(item.key, "blocked")}>标记异常</button></div>}</article>)}</div></div>)}</section></>}
   </div>;
 }
 
