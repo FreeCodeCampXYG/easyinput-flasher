@@ -1,5 +1,11 @@
 # EasyInput Flasher 开发状态
 
+## 2026-09-01：Windows ARM64 原生构建的 HID 依赖降级
+
+- 根因：ARM64 runner 没有可用的 Windows ARM64 hidapi/CGO 编译器，`karalabe/hid` 在 Wails 原生构建阶段调用 x64 GCC，报 `gcc_arm64.S` 指令错误。
+- 修复：真实 HID 诊断读取限定在 `!windows || amd64`；Windows ARM64 使用纯 Go 明确降级实现并提示未包含 hidapi 诊断能力，不伪造自动检测结果。
+- 验证：`GOOS=windows GOARCH=arm64 CGO_ENABLED=0 go build ./...` 通过；最新 CI 的 ARM64 测试已通过，原生构建在该依赖路径失败，待修复提交后重新验证。
+
 ## 2026-09-01：Windows ARM64 CI 的 CGO 测试修复
 
 - 根因：Windows ARM64 runner 的 `go test ./...` 启用 CGO 后，`karalabe/hid` 的 C 源文件被 x64 GCC 汇编，报 `stp x29,x30` 等 ARM64 指令错误。
