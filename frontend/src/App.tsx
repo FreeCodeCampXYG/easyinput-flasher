@@ -245,7 +245,7 @@ function App() {
       case "devices":
         return <DevicesPage devices={snapshot.devices} logs={snapshot.logs} onExport={exportDiagnostics} />;
       case "diagnostics":
-        return <DiagnosticsPage devices={snapshot.devices} onRun={runHardwareDiagnostics} />;
+        return <DiagnosticsPage devices={snapshot.devices} releases={snapshot.releases} selectedFirmwareId={selectedFirmwareId} onSelectFirmware={setSelectedFirmwareId} onRun={runHardwareDiagnostics} />;
       case "updates":
         return (
           <UpdatesPage
@@ -827,7 +827,20 @@ function DevicesPage({ devices, logs, onExport }: { devices: DeviceInfo[]; logs:
   );
 }
 
-function DiagnosticsPage({ devices, onRun }: { devices: DeviceInfo[]; onRun: (deviceId: string) => Promise<HardwareDiagnosticSnapshot> }) {
+const BOARD_DIAGNOSTIC_TIPS: Record<string, string> = {
+  chip: "它是这块板的主控。只有进入下载模式后，烧录器才能确认型号；普通 HID 在线不等于芯片已验身。",
+  flash: "它保存启动程序、分区表和固件。烧录器只按受信清单写固定地址，不会根据文件名猜写入位置。",
+  psram: "它是固件运行时使用的高速缓存内存。烧录器读不到“8 MB 已可用”，要看固件自检结果。",
+  keys: "S1-S8 是八个独立低有效按键，可同时按下；具体快捷键由当前固件决定。",
+  encoder: "旋钮的 A/B 是方向相位，按压是独立按键。顺时针、逆时针各转一次，再按一下；方向和功能由固件决定。",
+  led: "5 颗 WS2812 共用一根数据线，另有一颗绿色状态灯。颜色和动画不是板级固定含义。",
+  audio_in: "麦克风把声音送进固件，可用于录音、音量或语音功能；是否支持取决于当前固件。",
+  audio_out: "扬声器用于播放提示音或测试音。测试时从小音量开始，音频格式由固件决定。",
+  power: "这里能观察供电、充电和电池端电压。VBAT 只是电压估算，不是精确剩余电量。",
+  usb_ble: "烧录后关机再开机，电脑应重新看到正常 USB/BLE HID；这不等于每个快捷键都已验收。",
+};
+
+function DiagnosticsPage({ devices, releases, selectedFirmwareId, onSelectFirmware, onRun }: { devices: DeviceInfo[]; releases: FirmwareRelease[]; selectedFirmwareId: string; onSelectFirmware: (id: string) => void; onRun: (deviceId: string) => Promise<HardwareDiagnosticSnapshot> }) {
   const [deviceId, setDeviceId] = useState(devices[0]?.id ?? "");
   const [report, setReport] = useState<HardwareDiagnosticSnapshot>();
   const [busy, setBusy] = useState(false);
@@ -845,9 +858,10 @@ function DiagnosticsPage({ devices, onRun }: { devices: DeviceInfo[]; onRun: (de
   return <div className="page">
     <PageHeader eyebrow="EasyInput V2.0 / 板级体检" title="硬件诊断" description="按开发板真实能力分层：先验身，再做用户操作，最后进行运行态观察。每项都保留证据来源和未验证边界。" actions={<button className="button primary" type="button" onClick={run} disabled={!deviceId || busy}>{busy ? <LoaderCircle size={16} className="spin" /> : <Activity size={16} />}开始诊断</button>} />
     <section className="diagnostic-intro"><div><strong>推荐顺序</strong><span>正常模式先确认设备在线 → 开机短按并松开一次 BOOT → 刷新下载端口 → 读取 ESP32-S3 / Flash ID → 烧录后关机再开机观察 HID 与外设。</span></div><StatusPill tone={selected?.mode === "download" ? "success" : "warning"}>{selected?.mode === "download" ? "下载模式可验身" : "先进入下载模式"}</StatusPill></section>
-    <div className="diagnostic-toolbar"><label className="field grow"><span>目标设备</span><select value={deviceId} onChange={(event) => { setDeviceId(event.target.value); setReport(undefined); }}><option value="">未发现 EasyInput 设备</option>{devices.map((item) => <option key={item.id} value={item.id}>{item.port} · {item.product} · {item.mode === "download" ? "下载模式" : item.mode === "normal" ? "正常 HID" : "待确认"}</option>)}</select></label><div className="diagnostic-legend"><span><CheckCircle2 size={14} />已通过</span><span><Clock3 size={14} />待操作</span><span><Info size={14} />待验证</span></div></div>
+    <div className="diagnostic-toolbar"><label className="field grow"><span>目标设备</span><select value={deviceId} onChange={(event) => { setDeviceId(event.target.value); setReport(undefined); }}><option value="">未发现 EasyInput 设备</option>{devices.map((item) => <option key={item.id} value={item.id}>{item.port} · {item.product} · {item.mode === "download" ? "下载模式" : item.mode === "normal" ? "正常 HID" : "待确认"}</option>)}</select></label><label className="field grow"><span>教学固件</span><select value={selectedFirmwareId} onChange={(event) => onSelectFirmware(event.target.value)}><option value="">未选择固件</option>{releases.map((release) => <option key={release.id} value={release.id}>{release.sourceName} · {release.tag}</option>)}</select></label><div className="diagnostic-legend"><span><CheckCircle2 size={14} />已通过</span><span><Clock3 size={14} />待操作</span><span><Info size={14} />待验证</span></div></div>
+    {(() => { const firmware = releases.find((item) => item.id === selectedFirmwareId); return firmware ? <section className="diagnostic-firmware-tip"><div><strong>{firmware.sourceName} · {firmware.tag}</strong><span>{firmware.isFactory ? "Factory 恢复镜像：用于恢复出厂，不是普通升级。" : `适配 ${firmware.board} / ${firmware.chip}；具体功能以该版本清单和发布说明为准。`}</span></div><div className="diagnostic-firmware-notes">{(firmware.features.length ? firmware.features.map((feature) => feature.name) : firmware.changelog).slice(0, 4).map((text) => <span key={text}>{text}</span>)}</div></section> : null; })()}
     {notice && <div className="inline-error">{notice}</div>}
-    {!report ? <div className="diagnostic-empty"><Activity size={28} /><strong>{deviceId ? "点击“开始诊断”读取板级证据" : "先选择已识别的 EasyInput 设备"}</strong><span>不会扫描或写入无关设备；没有下载端口时，自动验身会明确停在 BOOT 引导，不会显示伪造芯片信息。</span></div> : <><div className="diagnostic-summary"><strong>本次诊断结果</strong><span>通过 {counts?.passed ?? 0} · 待操作 {counts?.pending ?? 0} · 阻断 {counts?.blocked ?? 0} · 待验证 {counts?.unknown ?? 0}</span></div><section className="diagnostic-groups">{groups.map((group) => <div className="diagnostic-group" key={group.key}><div className="diagnostic-group-heading"><div><strong>{group.title}</strong><span>{group.description}</span></div><span>{group.items.length} 项</span></div><div className="diagnostic-grid">{group.items.map((item) => <article className={`diagnostic-card ${item.status}`} key={item.key}><div className="diagnostic-card-heading"><div><strong>{item.label}</strong><span>{item.evidence}</span></div><StatusPill tone={item.status === "passed" ? "success" : item.status === "unknown" ? "neutral" : "warning"}>{item.status === "passed" ? "通过" : item.status === "blocked" ? "需先验身" : item.status === "unknown" ? "待验证" : "待操作"}</StatusPill></div><p>{item.detail}</p>{item.status === "pending" && <div className="diagnostic-actions"><button type="button" className="button secondary" onClick={() => mark(item.key, "passed")}>标记通过</button><button type="button" className="button ghost" onClick={() => mark(item.key, "blocked")}>标记异常</button></div>}</article>)}</div></div>)}</section></>}
+    {!report ? <div className="diagnostic-empty"><Activity size={28} /><strong>{deviceId ? "点击“开始诊断”读取板级证据" : "先选择已识别的 EasyInput 设备"}</strong><span>不会扫描或写入无关设备；没有下载端口时，自动验身会明确停在 BOOT 引导，不会显示伪造芯片信息。</span></div> : <><div className="diagnostic-summary"><strong>本次诊断结果</strong><span>通过 {counts?.passed ?? 0} · 待操作 {counts?.pending ?? 0} · 阻断 {counts?.blocked ?? 0} · 待验证 {counts?.unknown ?? 0}</span></div><section className="diagnostic-groups">{groups.map((group) => <div className="diagnostic-group" key={group.key}><div className="diagnostic-group-heading"><div><strong>{group.title}</strong><span>{group.description}</span></div><span>{group.items.length} 项</span></div><div className="diagnostic-grid">{group.items.map((item) => <article className={`diagnostic-card ${item.status}`} key={item.key}><div className="diagnostic-card-heading"><div><strong>{item.label}</strong><span>{item.evidence}</span></div><StatusPill tone={item.status === "passed" ? "success" : item.status === "unknown" ? "neutral" : "warning"}>{item.status === "passed" ? "通过" : item.status === "blocked" ? "需先验身" : item.status === "unknown" ? "待验证" : "待操作"}</StatusPill></div><p>{item.detail}</p><div className="diagnostic-tip"><strong>怎么用</strong><span>{BOARD_DIAGNOSTIC_TIPS[item.key] ?? "请以当前固件说明和实板表现为准。"}</span></div>{item.status === "pending" && <div className="diagnostic-actions"><button type="button" className="button secondary" onClick={() => mark(item.key, "passed")}>标记通过</button><button type="button" className="button ghost" onClick={() => mark(item.key, "blocked")}>标记异常</button></div>}</article>)}</div></div>)}</section></>}
   </div>;
 }
 
