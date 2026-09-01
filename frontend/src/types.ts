@@ -47,6 +47,7 @@ export interface FirmwareRelease {
   idfVersion: string;
   size: string;
   trusted: boolean;
+  isFactory?: boolean;
   checksumVerified: boolean;
   channel: "stable" | "preview" | "custom";
   features: FirmwareFeature[];
@@ -66,6 +67,9 @@ export interface FlashProgress {
   step: string;
   message: string;
   currentImage?: string;
+  currentAddress?: string;
+  currentBytes?: number;
+  totalBytes?: number;
   canCancel: boolean;
   hidRecovered: boolean;
   functionalVerification: "pending" | "passed" | "failed";

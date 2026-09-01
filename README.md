@@ -17,6 +17,20 @@ EasyInput Flasher 是 EasyInput V2.0 的桌面烧录工具。它从受信 GitHub
 
 Windows x64 是当前完成本机构建验证的目标。其他平台由 GitHub Actions 原生 runner 打包；CI 成功不等同于真实设备烧录已验证。
 
+### Windows 安全提示与误报
+
+当前 Windows 包尚未使用代码签名证书，因此 SmartScreen 的“未知发布者”提示不等于文件已被判定为恶意软件。只有在**从本项目官方 [Releases](https://github.com/FreeCodeCampXYG/easyinput-flasher/releases) 下载**，并且 ZIP 的 SHA-256 与同名 `.sha256` 文件一致时，才应继续运行。
+
+在解压目录打开 PowerShell，执行以下命令校验下载的 ZIP；输出的哈希必须与 Release 页面中的 `.sha256` 文件完全一致：
+
+```powershell
+Get-FileHash .\easyinput-flasher-v<版本>-windows-x64-portable.zip -Algorithm SHA256
+```
+
+若 Windows Defender 隔离了已校验的 `easyinput-flasher.exe`，请在“Windows 安全中心 -> 保护历史记录”确认文件名、Release 版本和 SHA-256 后，再选择“允许在设备上”。不要关闭实时防护，也不要给整个磁盘或下载目录添加排除项。请在 [Issue](https://github.com/FreeCodeCampXYG/easyinput-flasher/issues) 附上拦截名称、Defender 版本、Release 版本和 ZIP SHA-256；不要上传设备日志、MAC 地址或其他隐私数据。
+
+开发者自行编译时如遇误报，只应为自己的 `build\bin` 输出目录建立临时精确排除项。该开发环境做法不适用于下载者，也不能替代发布包校验。
+
 ## 第一次烧录
 
 准备条件：EasyInput V2.0 / ESP32-S3、支持数据传输的 USB 线，以及可访问 GitHub Release 的网络环境。

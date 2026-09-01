@@ -77,6 +77,6 @@ firmware-v0.1.0-my-light-effect
 | --- | --- |
 | 没有可烧录 Release | 先创建并推送 `firmware-v*` tag，等 Actions 成功。 |
 | 缺自动发布工作流或 manifest 脚本 | 从官方仓库同步 `.github/workflows/firmware-release.yml` 和 `scripts/build_firmware_manifest.py`，再提交到自己的仓库。 |
-| Release 缺镜像 | 不要手工上传未知 bin；检查 Actions 的构建产物和发布步骤。 |
+| Release 缺镜像 | 如果只有 `factory.bin`，Flasher 会识别并提示，但不会自动拆分或猜测偏移；请运行仓库 Actions 生成三段镜像、`firmware-manifest.json` 和 `SHA256SUMS.txt` 后再检查。 |
 | 烧录后界面显示别的版本 | 先升级 Flasher；完成页应保留你实际选择的 manifest tag。 |
 | 想让更多人试用 | 在 Issue 中创建 Firmware source proposal，提供公开 Release URL、commit 和已验证范围。 |

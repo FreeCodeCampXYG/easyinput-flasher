@@ -1,5 +1,10 @@
 # 决策日志 (decisions)
 
+## 2026-09-01 · 不自动拆分社区 factory 镜像
+- 背景: `CY-CHENYUE/easy-input-maker` 当前 Release 只有整片 `factory.bin`，缺少 Flasher 合同要求的 manifest 与三段镜像。
+- 决定: 发现页识别并提示 factory 镜像，但不在桌面端自动拆分、猜测偏移或把它伪装成标准包；补齐由固件仓库 Actions 生成标准 Release。
+- 原因: 整片镜像边界可能覆盖配置分区，自动补齐会扩大不可逆写入风险；同时保持桌面端不集成本地编译器的范围。
+
 ## 2026-08-31 · 正式切换为纯 Go `espflasher`
 - 背景: 用户授权依赖准入并要求移除嵌套 Python 烧录助手；依赖治理查询此前未命中记录，但本轮以用户明确授权作为项目准入决定。
 - 决定: 固定 `tinygo.org/x/espflasher v0.8.1`，由 Go 后端直连 ESP32-S3 ROM/stub；手动 BOOT 后使用 `ResetNoReset`，写入仍只消费 manifest 固定的三段镜像。

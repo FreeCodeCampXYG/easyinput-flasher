@@ -1,8 +1,12 @@
 package application
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
+	"encoding/base64"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -34,10 +38,87 @@ type App struct {
 	status   domain.FlashStatus
 	cancel   context.CancelFunc
 	logs     []domain.ActivityLog
+	local    map[string]string
 }
 
 func New(version string) *App {
-	return &App{version: version, devices: make(map[string]domain.DeviceInfo), status: newStatus(domain.FlashStageIdle, "等待检测设备", 0), logs: make([]domain.ActivityLog, 0, 64)}
+	return &App{version: version, devices: make(map[string]domain.DeviceInfo), local: make(map[string]string), status: newStatus(domain.FlashStageIdle, "等待检测设备", 0), logs: make([]domain.ActivityLog, 0, 64)}
+}
+
+// ImportLocalBundle 校验固定 ZIP 合同后加入本地固件库；失败时保留原文件，不执行任何写入。
+func (a *App) ImportLocalBundle(encoded string) (domain.FirmwareRelease, error) {
+	data, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil {
+		return domain.FirmwareRelease{}, fmt.Errorf("本地固件包编码无效: %w", err)
+	}
+	archive, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
+	if err != nil {
+		return domain.FirmwareRelease{}, fmt.Errorf("本地固件包不是有效 ZIP: %w", err)
+	}
+	root, err := os.MkdirTemp("", "easyinput-flasher-bundle-")
+	if err != nil {
+		return domain.FirmwareRelease{}, err
+	}
+	for _, entry := range archive.File {
+		if entry.FileInfo().IsDir() || filepath.Base(entry.Name) != entry.Name {
+			continue
+		}
+		reader, openErr := entry.Open()
+		if openErr != nil {
+			return domain.FirmwareRelease{}, openErr
+		}
+		content, readErr := io.ReadAll(io.LimitReader(reader, 32<<20))
+		_ = reader.Close()
+		if readErr != nil {
+			return domain.FirmwareRelease{}, readErr
+		}
+		if writeErr := os.WriteFile(filepath.Join(root, entry.Name), content, 0o600); writeErr != nil {
+			return domain.FirmwareRelease{}, writeErr
+		}
+	}
+	manifestData, err := os.ReadFile(filepath.Join(root, "firmware-manifest.json"))
+	if err != nil {
+		return domain.FirmwareRelease{}, fmt.Errorf("本地固件包缺少 firmware-manifest.json")
+	}
+	manifest, err := firmware.ParseManifest(manifestData)
+	if err != nil {
+		return domain.FirmwareRelease{}, err
+	}
+	if err := firmware.VerifyBundle(root, manifest); err != nil {
+		return domain.FirmwareRelease{}, err
+	}
+	id := "local@" + manifest.Tag
+	release := domain.FirmwareRelease{ID: id, Repository: "local", Tag: manifest.Tag, Name: "本地固件 " + manifest.Tag, PublishedAt: "本地导入", Manifest: manifest, Trusted: true}
+	a.mu.Lock()
+	a.local[id] = root
+	a.firmware = append(a.firmware, release)
+	a.mu.Unlock()
+	a.appendLog("success", "固件", "已导入并校验本地固件包："+manifest.Tag)
+	return release, nil
+}
+
+// ImportFactoryBundle 导入单文件恢复镜像；固定写入 0x0，并显式标记会清除 NVS/蓝牙绑定。
+func (a *App) ImportFactoryBundle(encoded string) (domain.FirmwareRelease, error) {
+	data, err := base64.StdEncoding.DecodeString(encoded)
+	if err != nil || len(data) == 0 || len(data) > 32<<20 {
+		return domain.FirmwareRelease{}, fmt.Errorf("Factory 镜像无效或超过大小限制")
+	}
+	root, err := os.MkdirTemp("", "easyinput-flasher-factory-")
+	if err != nil {
+		return domain.FirmwareRelease{}, err
+	}
+	name := "factory.bin"
+	if err := os.WriteFile(filepath.Join(root, name), data, 0o600); err != nil {
+		return domain.FirmwareRelease{}, err
+	}
+	manifest := domain.FirmwareManifest{SchemaVersion: 1, Product: "easyinput-factory", Board: domain.BoardID, Chip: domain.ChipType, Tag: "local-factory", IDFVersion: "未知（Factory 镜像）", Files: []domain.FlashFile{{Name: name, Offset: "0x0", Size: int64(len(data))}}}
+	release := domain.FirmwareRelease{ID: "local-factory@" + fmt.Sprint(len(data)), Repository: "local-factory", Tag: "Factory 恢复", Name: "本地 Factory 恢复（会清除配置）", PublishedAt: "本地导入", Manifest: manifest, Trusted: true, IsFactory: true}
+	a.mu.Lock()
+	a.local[release.ID] = root
+	a.firmware = append(a.firmware, release)
+	a.mu.Unlock()
+	a.appendLog("warning", "固件", "已导入 Factory 恢复镜像；写入将清除 NVS 配置和蓝牙绑定")
+	return release, nil
 }
 
 func (a *App) Startup(ctx context.Context) {
@@ -268,15 +349,23 @@ func (a *App) StartFlash(request FlashRequest) error {
 		a.mu.Unlock()
 		return fmt.Errorf("设备尚未完成 ESP32-S3 验身")
 	}
-	expected := "确认烧录 " + item.MACSuffix
-	if request.Confirmation != expected {
-		a.mu.Unlock()
-		return fmt.Errorf("确认文本不匹配")
-	}
 	selected, found := findFirmware(a.firmware, request.FirmwareID)
 	if !found {
 		a.mu.Unlock()
 		return fmt.Errorf("固件选择已过期，请刷新固件列表后重试")
+	}
+	repository, tag, ok := strings.Cut(request.FirmwareID, "@")
+	if !ok {
+		a.mu.Unlock()
+		return fmt.Errorf("固件选择无效")
+	}
+	expected := "确认烧录 " + item.MACSuffix
+	if selected.IsFactory && (repository == "local-factory" || repository == "local") {
+		expected = "确认恢复出厂 " + item.MACSuffix
+	}
+	if request.Confirmation != expected {
+		a.mu.Unlock()
+		return fmt.Errorf("确认文本不匹配")
 	}
 	// 写入权限由后端按本轮受信列表签发，避免 Wails 调用绕过前端的社区来源提示。
 	if !selected.Trusted {
@@ -288,10 +377,6 @@ func (a *App) StartFlash(request FlashRequest) error {
 	a.mu.Unlock()
 	defer a.finishJob()
 
-	repository, tag, ok := strings.Cut(request.FirmwareID, "@")
-	if !ok {
-		return fmt.Errorf("固件选择无效")
-	}
 	// 状态文案使用清单绑定的 tag，避免 Release 自定义标题重复或误导版本判断。
 	firmwareLabel := selected.Tag
 	a.setFlashStatus(domain.FlashStageDownload, fmt.Sprintf("正在下载并校验固件：%s，请保持网络连接", firmwareLabel), 30, false, item.ID, request.FirmwareID)
@@ -302,21 +387,49 @@ func (a *App) StartFlash(request FlashRequest) error {
 	if err != nil {
 		return err
 	}
-	cacheRoot, err := bundlePath(repository, tag)
-	if err != nil {
-		return err
-	}
-	manifest, err := client.DownloadBundle(jobCtx, repository, tag, cacheRoot)
-	if err != nil {
-		a.setFlashStatus(domain.FlashStageFailed, fmt.Sprintf("固件 %s 下载失败：%s", firmwareLabel, err), 0, false, item.ID, request.FirmwareID)
-		return err
+	var cacheRoot string
+	var manifest domain.FirmwareManifest
+	if selected.IsFactory && (repository == "local-factory" || repository == "local") {
+		a.mu.RLock()
+		cacheRoot = a.local[request.FirmwareID]
+		a.mu.RUnlock()
+		if cacheRoot == "" {
+			return fmt.Errorf("Factory 镜像已失效，请重新导入")
+		}
+		manifest = selected.Manifest
+	} else if repository == "local" {
+		a.mu.RLock()
+		cacheRoot = a.local[request.FirmwareID]
+		a.mu.RUnlock()
+		if cacheRoot == "" {
+			return fmt.Errorf("本地固件包已失效，请重新导入")
+		}
+		manifest = selected.Manifest
+	} else {
+		cacheRoot, err = bundlePath(repository, tag)
+		if err != nil {
+			return err
+		}
+		manifest, err = client.DownloadBundle(jobCtx, repository, tag, cacheRoot)
+		if err != nil {
+			a.setFlashStatus(domain.FlashStageFailed, fmt.Sprintf("固件 %s 下载失败：%s", firmwareLabel, err), 0, false, item.ID, request.FirmwareID)
+			return err
+		}
 	}
 	a.setFlashStatus(domain.FlashStageWrite, fmt.Sprintf("正在烧录固件：%s；请勿拔出 USB 数据线、关闭电源或再次按 BOOT", firmwareLabel), 55, false, item.ID, request.FirmwareID)
 	runner, err := flasher.NewRunner()
 	if err != nil {
 		return err
 	}
-	if _, err := runner.Flash(jobCtx, item.Port, cacheRoot, manifest); err != nil {
+	if _, err := runner.FlashWithDetails(jobCtx, item.Port, cacheRoot, manifest, func(index, current, total int) {
+		if total <= 0 || index >= len(manifest.Files) {
+			return
+		}
+		percent := 55 + (current+manifestPrefixSize(manifest, index))*33/manifestTotalSize(manifest)
+		file := manifest.Files[index]
+		a.setFlashStatus(domain.FlashStageWrite, fmt.Sprintf("正在写入 %s：%d%%（%d / %d 字节）", file.Name, percent, current, total), percent, false, item.ID, request.FirmwareID)
+		a.updateFlashDetails(file.Name, file.Offset, current, total)
+	}); err != nil {
 		a.setFlashStatus(domain.FlashStageFailed, fmt.Sprintf("固件 %s 写入失败：%s", firmwareLabel, err), 0, false, item.ID, request.FirmwareID)
 		return err
 	}
@@ -377,6 +490,50 @@ func (a *App) setFlashStatus(stage domain.FlashStage, message string, progress i
 	// 烧录状态保留设备和版本指针，避免异步轮询或失败日志无法确认实际写入目标。
 	a.status = domain.FlashStatus{Stage: stage, Message: message, Progress: progress, CanFlash: canFlash, DeviceID: deviceID, FirmwareID: firmwareID, UpdatedAt: time.Now().UTC()}
 	a.mu.Unlock()
+}
+
+func (a *App) updateFlashDetails(image, address string, current, total int) {
+	a.mu.Lock()
+	a.status.CurrentImage, a.status.CurrentAddress = image, address
+	a.status.CurrentBytes, a.status.TotalBytes = current, total
+	a.mu.Unlock()
+	if current == 0 || current >= total {
+		a.appendLog("info", "烧录", fmt.Sprintf("写入 %s at %s（%d%%）", image, address, percentOf(current, total)))
+	}
+}
+
+func manifestTotalSize(manifest domain.FirmwareManifest) int {
+	total := 0
+	for _, file := range manifest.Files {
+		total += int(file.Size)
+	}
+	if total == 0 {
+		for _, file := range manifest.Files {
+			if file.Size > 0 {
+				total += int(file.Size)
+			}
+		}
+	}
+	return maxInt(total, 1)
+}
+func manifestPrefixSize(manifest domain.FirmwareManifest, index int) int {
+	total := 0
+	for i := 0; i < index && i < len(manifest.Files); i++ {
+		total += int(manifest.Files[i].Size)
+	}
+	return total
+}
+func percentOf(current, total int) int {
+	if total <= 0 {
+		return 0
+	}
+	return current * 100 / total
+}
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
 }
 
 func (a *App) appendLog(level, scope, message string) {

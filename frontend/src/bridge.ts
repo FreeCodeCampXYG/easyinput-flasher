@@ -16,6 +16,10 @@ interface RawFlashStatus {
   canFlash: boolean;
   deviceId?: string;
   firmwareId?: string;
+  currentImage?: string;
+  currentAddress?: string;
+  currentBytes?: number;
+  totalBytes?: number;
 }
 
 interface RawDeviceInfo {
@@ -37,6 +41,7 @@ interface RawFirmwareRelease {
   name: string;
   publishedAt: string;
   trusted: boolean;
+  isFactory?: boolean;
   manifest?: {
     board?: string;
     chip?: string;
@@ -61,6 +66,8 @@ interface WailsAppBridge {
   ScanDevices?: () => Promise<RawDeviceInfo[]>;
   InspectDevice?: (deviceId: string) => Promise<RawDeviceInfo>;
   ListFirmware?: () => Promise<RawFirmwareRelease[]>;
+  ImportLocalBundle?: (encoded: string) => Promise<RawFirmwareRelease>;
+  ImportFactoryBundle?: (encoded: string) => Promise<RawFirmwareRelease>;
   AuditFirmwareSource?: (repository: string) => Promise<FirmwareSourceAudit>;
   TrustFirmwareSource?: (repository: string, confirmation: string) => Promise<void>;
   StartFlash?: (input: StartFlashInput) => Promise<void>;
@@ -104,6 +111,25 @@ export async function listFirmware(): Promise<DashboardSnapshot | undefined> {
   const bridge = appBridge();
   if (!bridge?.ListFirmware) return undefined;
   await bridge.ListFirmware();
+  return refreshFrom(bridge);
+}
+
+export async function importLocalBundle(file: File): Promise<DashboardSnapshot | undefined> {
+  const bridge = appBridge();
+  if (!bridge?.ImportLocalBundle) throw new Error("本地固件导入后端尚未连接");
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let binary = "";
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  await bridge.ImportLocalBundle(btoa(binary));
+  return refreshFrom(bridge);
+}
+
+export async function importFactoryBundle(file: File): Promise<DashboardSnapshot | undefined> {
+  const bridge = appBridge();
+  if (!bridge?.ImportFactoryBundle) throw new Error("Factory 恢复后端尚未连接");
+  const bytes = new Uint8Array(await file.arrayBuffer()); let binary = "";
+  bytes.forEach((byte) => { binary += String.fromCharCode(byte); });
+  await bridge.ImportFactoryBundle(btoa(binary));
   return refreshFrom(bridge);
 }
 
@@ -193,6 +219,10 @@ function adaptSnapshot(raw: RawDashboardSnapshot): DashboardSnapshot {
       canCancel: stage === "downloading" || stage === "flashing",
       hidRecovered: stage === "complete",
       functionalVerification: "pending",
+      currentImage: raw.status?.currentImage,
+      currentAddress: raw.status?.currentAddress,
+      currentBytes: raw.status?.currentBytes,
+      totalBytes: raw.status?.totalBytes,
     },
     logs: raw.status?.message
       ? [{ id: `status-${raw.status.stage}`, time: "现在", level: stage === "failed" ? "error" : "info", scope: "状态", message: raw.status.message }, ...(raw.logs ?? []).map((item, index) => ({ id: `log-${index}`, time: formatLogTime(item.time), level: adaptLogLevel(item.level), scope: item.scope, message: item.message }))]
@@ -249,6 +279,7 @@ function adaptFirmware(raw: RawFirmwareRelease): FirmwareRelease {
     idfVersion: manifest.idfVersion || "下载后核对",
     size: totalSize > 0 ? formatBytes(totalSize) : "下载后核对",
     trusted: Boolean(raw.trusted),
+    isFactory: Boolean(raw.isFactory),
     checksumVerified: false,
     channel: raw.tag.includes("beta") || raw.tag.includes("rc") ? "preview" : "stable",
     features: [],

@@ -51,6 +51,8 @@ import {
   getDashboardSnapshot,
   inspectDevice,
   exportDiagnostics,
+  importLocalBundle,
+  importFactoryBundle,
   listFirmware,
   scanDevices,
   startFlash,
@@ -146,7 +148,7 @@ function App() {
 
   const device = snapshot.devices.find((item) => item.id === selectedDeviceId);
   const firmware = snapshot.releases.find((item) => item.id === selectedFirmwareId);
-  const expectedConfirmation = device?.macSuffix ? `确认烧录 ${device.macSuffix}` : "";
+  const expectedConfirmation = device?.macSuffix ? `${firmware?.isFactory ? "确认恢复出厂" : "确认烧录"} ${device.macSuffix}` : "";
   const confirmationMatches = expectedConfirmation.length > 0 && confirmation.trim() === expectedConfirmation;
   const canStart = Boolean(
     snapshot.backendReady &&
@@ -223,6 +225,16 @@ function App() {
             }}
             onRefresh={() => runSnapshotAction("firmware", listFirmware)}
             refreshing={pendingAction === "firmware"}
+            onImport={() => {
+              const input = document.createElement("input"); input.type = "file"; input.accept = ".zip";
+              input.onchange = () => { const file = input.files?.[0]; if (file) void runSnapshotAction("import", () => importLocalBundle(file)); };
+              input.click();
+            }}
+            onImportFactory={() => {
+              const input = document.createElement("input"); input.type = "file"; input.accept = ".bin";
+              input.onchange = () => { const file = input.files?.[0]; if (file) void runSnapshotAction("import-factory", () => importFactoryBundle(file)); };
+              input.click();
+            }}
           />
         );
       case "discover":
@@ -522,7 +534,12 @@ function FlashPage(props: FlashPageProps) {
             <div className="progress-track" aria-label={`烧录进度 ${snapshot.progress.percent}%`}>
               <span style={{ width: `${snapshot.progress.percent}%` }} />
             </div>
-            {snapshot.progress.currentImage && <code>{snapshot.progress.currentImage}</code>}
+            {snapshot.progress.currentImage && <div className="flash-detail-grid">
+              <span>当前镜像 <code>{snapshot.progress.currentImage}</code></span>
+              <span>写入地址 <code>{snapshot.progress.currentAddress ?? "读取中"}</code></span>
+              <span>当前段 <code>{formatBytes(snapshot.progress.currentBytes ?? 0)} / {formatBytes(snapshot.progress.totalBytes ?? 0)}</code></span>
+              <span>校验方式 <code>设备端 Hash</code></span>
+            </div>}
           </div>
 
           {complete ? (
@@ -589,7 +606,7 @@ function FlashPage(props: FlashPageProps) {
               <span><TerminalSquare size={15} />最近活动</span>
               <button type="button">查看全部 <ChevronRight size={14} /></button>
             </div>
-            {snapshot.logs.slice(-4).map((log) => <LogRow key={log.id} log={log} />)}
+            {snapshot.logs.slice(-6).map((log) => <LogRow key={log.id} log={log} />)}
           </div>
         </div>
       </section>
@@ -638,6 +655,7 @@ function FirmwareSummary({ release }: { release: FirmwareRelease }) {
         {release.checksumVerified ? <FileCheck2 size={16} /> : <XCircle size={16} />}
         {release.checksumVerified ? "固件清单与文件哈希已通过" : "固件完整性尚未验证"}
       </div>
+      {release.isFactory && <div className="factory-warning"><ShieldAlert size={15} />Factory 恢复固定写入 0x0，会清除 NVS 配置和蓝牙绑定。</div>}
     </div>
   );
 }
@@ -682,12 +700,16 @@ function LibraryPage({
   onSelect,
   onRefresh,
   refreshing,
+  onImport,
+  onImportFactory,
 }: {
   releases: FirmwareRelease[];
   selectedId: string;
   onSelect: (id: string) => void;
   onRefresh: () => void;
   refreshing: boolean;
+  onImport: () => void;
+  onImportFactory: () => void;
 }) {
   return (
     <div className="page">
@@ -699,7 +721,8 @@ function LibraryPage({
       />
       <div className="toolbar-row">
         <div className="search-box"><Search size={16} /><input placeholder="搜索仓库、标签或提交" /></div>
-        <button className="button secondary" type="button"><Github size={16} />添加 GitHub 源</button>
+        <button className="button secondary" type="button" onClick={onImport}><PackageCheck size={16} />导入本地 ZIP</button>
+        <button className="button danger" type="button" onClick={onImportFactory}>导入 Factory 恢复</button>
       </div>
       <section className="table-section">
         <div className="table-heading firmware-table-grid">
@@ -830,11 +853,21 @@ function AboutPage({ version }: { version: string }) {
         <div><h2>EasyInput Flasher</h2><p>版本 {version}</p><span>Wails + Go 桌面端 · React 工作台</span></div>
       </section>
       <div className="about-grid">
-        <section><BookOpen size={20} /><div><strong>使用手册</strong><p>设备检测、下载模式、写入确认、恢复启动与故障排查。</p><button type="button">打开帮助 <ExternalLink size={14} /></button></div></section>
-        <section><Github size={20} /><div><strong>开源仓库</strong><p>查看源码、Release、已知问题与公开路线图。</p><button type="button">访问 GitHub <ExternalLink size={14} /></button></div></section>
+        <section><BookOpen size={20} /><div><strong>使用手册（内嵌）</strong><p>设备检测、下载模式、写入确认、恢复启动与故障排查。</p><a className="button secondary" href="#flasher-help">查看本页说明 <ChevronRight size={14} /></a></div></section>
+        <section><Github size={20} /><div><strong>EasyInput Flasher 仓库</strong><p>查看烧录器源码、Release、已知问题与公开路线图。</p><a className="button secondary" href="https://github.com/FreeCodeCampXYG/easyinput-flasher" target="_blank" rel="noreferrer">访问 Flasher GitHub <ExternalLink size={14} /></a></div></section>
+        <section><Github size={20} /><div><strong>CY 老师固件仓库</strong><p>查看官方 Maker 固件与 Factory 恢复 Release。</p><a className="button secondary" href="https://github.com/CY-CHENYUE/easy-input-maker/releases/tag/v0.4.53" target="_blank" rel="noreferrer">查看 v0.4.53 Release <ExternalLink size={14} /></a></div></section>
         <section><ShieldCheck size={20} /><div><strong>安全边界</strong><p>不默认整片擦除；每次写入都重新验身并要求明确确认。</p><button type="button">查看烧录规范 <ChevronRight size={14} /></button></div></section>
         <section><Settings2 size={20} /><div><strong>开源组件</strong><p>Wails、React、Lucide 与经过版本锁定的烧录工具。</p><button type="button">第三方声明 <ChevronRight size={14} /></button></div></section>
       </div>
+      <section id="flasher-help" className="help-embed">
+        <div className="section-heading"><BookOpen size={17} /><span>快速使用说明</span><small>无需打开外部网页</small></div>
+        <div className="help-steps">
+          <details open><summary>1. 进入下载模式</summary><p>设备正常开机并连接数据线后，先确认界面识别到正常 HID；然后开机短按并松开 BOOT，点击“刷新下载端口”。不要按住 BOOT 再上电。</p></details>
+          <details><summary>2. 选择完整固件</summary><p>在“固件库”选择带有 <code>firmware-manifest.json</code>、<code>bootloader.bin</code>、<code>partition-table.bin</code> 和 <code>easy_input_keyboard.bin</code> 的 Release。整片 <code>factory.bin</code> 不能直接当作安全补齐包。</p></details>
+          <details><summary>3. 验身、确认与恢复</summary><p>下载后软件会重新校验 manifest 与 SHA-256，并显示 ESP32-S3 与 MAC 尾号。输入界面给出的确认文本后开始写入；完成后关机再正常开机，再点击“检测正常 HID 恢复”。</p></details>
+          <details><summary>4. 社区仓库文件不足怎么办</summary><p>“发现”页会提示缺少的发布资产。若仓库只有 factory.bin，软件不会自动拆分或猜测偏移，以免覆盖配置分区；请按仓库 Actions 生成标准三段镜像和 manifest，再重新检查 Release。</p></details>
+        </div>
+      </section>
       <div className="about-footnote">EasyInput Flasher 不会把“构建成功”“写入成功”“设备枚举”和“真实功能验证”合并为同一结论。</div>
     </div>
   );
@@ -882,6 +915,12 @@ function modeLabel(mode?: DeviceInfo["mode"]) {
   if (mode === "download") return "下载模式";
   if (mode === "normal") return "正常 HID";
   return "未识别";
+}
+
+function formatBytes(value: number): string {
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  return `${(value / (1024 * 1024)).toFixed(2)} MB`;
 }
 
 function proxyLabel(mode: DashboardSnapshot["network"]["proxyMode"]) {

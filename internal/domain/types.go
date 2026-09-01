@@ -34,6 +34,7 @@ type FirmwareRelease struct {
 	PublishedAt string           `json:"publishedAt"`
 	Manifest    FirmwareManifest `json:"manifest"`
 	Trusted     bool             `json:"trusted"`
+	IsFactory   bool             `json:"isFactory"`
 }
 
 type FirmwareSourceCheck struct {
@@ -77,13 +78,17 @@ const (
 )
 
 type FlashStatus struct {
-	Stage      FlashStage `json:"stage"`
-	Message    string     `json:"message"`
-	Progress   int        `json:"progress"`
-	CanFlash   bool       `json:"canFlash"`
-	UpdatedAt  time.Time  `json:"updatedAt"`
-	DeviceID   string     `json:"deviceId,omitempty"`
-	FirmwareID string     `json:"firmwareId,omitempty"`
+	Stage          FlashStage `json:"stage"`
+	Message        string     `json:"message"`
+	Progress       int        `json:"progress"`
+	CanFlash       bool       `json:"canFlash"`
+	UpdatedAt      time.Time  `json:"updatedAt"`
+	DeviceID       string     `json:"deviceId,omitempty"`
+	FirmwareID     string     `json:"firmwareId,omitempty"`
+	CurrentImage   string     `json:"currentImage,omitempty"`
+	CurrentAddress string     `json:"currentAddress,omitempty"`
+	CurrentBytes   int        `json:"currentBytes,omitempty"`
+	TotalBytes     int        `json:"totalBytes,omitempty"`
 }
 
 type DashboardSnapshot struct {

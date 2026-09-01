@@ -33,7 +33,7 @@ func (r *Runner) Inspect(ctx context.Context, port string) (string, error) {
 	return fmt.Sprintf("Chip type: %s\nMAC: %s", flasher.ChipName(), mac), nil
 }
 
-func (r *Runner) Flash(ctx context.Context, port, bundleRoot string, manifest domain.FirmwareManifest) (string, error) {
+func (r *Runner) Flash(ctx context.Context, port, bundleRoot string, manifest domain.FirmwareManifest, progress func(current, total int)) (string, error) {
 	images, err := loadImages(bundleRoot, manifest)
 	if err != nil {
 		return "", err
@@ -43,10 +43,46 @@ func (r *Runner) Flash(ctx context.Context, port, bundleRoot string, manifest do
 		return "", err
 	}
 	defer flasher.Close()
-	if err := flashWithContext(ctx, flasher, images); err != nil {
+	if err := flashWithContext(ctx, flasher, images, progress); err != nil {
 		return "", err
 	}
 	return "纯 Go 烧录器已完成受控三段写入", nil
+}
+
+// FlashWithDetails 在保留旧接口的同时报告当前镜像索引和字节进度，供桌面诊断面板展示。
+func (r *Runner) FlashWithDetails(ctx context.Context, port, bundleRoot string, manifest domain.FirmwareManifest, progress func(index, current, total int)) (string, error) {
+	images, err := loadImages(bundleRoot, manifest)
+	if err != nil {
+		return "", err
+	}
+	flasher, err := openForFlash(ctx, port)
+	if err != nil {
+		return "", err
+	}
+	defer flasher.Close()
+	done := make(chan error, 1)
+	go func() {
+		done <- flasher.FlashImages(images, func(current, total int) {
+			remaining := current
+			index := 0
+			for index+1 < len(images) && remaining >= len(images[index].Data) {
+				remaining -= len(images[index].Data)
+				index++
+			}
+			progress(index, remaining, len(images[index].Data))
+		})
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			return "", fmt.Errorf("纯 Go 烧录失败: %w", err)
+		}
+		return "纯 Go 烧录器已完成受控写入", nil
+	case <-ctx.Done():
+		_ = flasher.Close()
+		<-done
+		return "", ctx.Err()
+	}
 }
 
 func openROM(ctx context.Context, port string) (*espflasher.Flasher, error) {
@@ -75,9 +111,9 @@ func openForFlash(ctx context.Context, port string) (*espflasher.Flasher, error)
 	return espflasher.New(port, options)
 }
 
-func flashWithContext(ctx context.Context, flasher *espflasher.Flasher, images []espflasher.ImagePart) error {
+func flashWithContext(ctx context.Context, flasher *espflasher.Flasher, images []espflasher.ImagePart, progress espflasher.ProgressFunc) error {
 	done := make(chan error, 1)
-	go func() { done <- flasher.FlashImages(images, nil) }()
+	go func() { done <- flasher.FlashImages(images, progress) }()
 	select {
 	case err := <-done:
 		if err != nil {
@@ -93,6 +129,13 @@ func flashWithContext(ctx context.Context, flasher *espflasher.Flasher, images [
 }
 
 func loadImages(bundleRoot string, manifest domain.FirmwareManifest) ([]espflasher.ImagePart, error) {
+	if manifest.Product == "easyinput-factory" && len(manifest.Files) == 1 && manifest.Files[0].Name == "factory.bin" && manifest.Files[0].Offset == "0x0" {
+		data, err := os.ReadFile(filepath.Join(bundleRoot, "factory.bin"))
+		if err != nil {
+			return nil, fmt.Errorf("读取 Factory 镜像失败: %w", err)
+		}
+		return []espflasher.ImagePart{{Data: data, Offset: 0}}, nil
+	}
 	if manifest.Board != domain.BoardID || manifest.Chip != domain.ChipType || len(manifest.Files) != 3 {
 		return nil, fmt.Errorf("固件清单未通过目标设备检查")
 	}

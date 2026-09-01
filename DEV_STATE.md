@@ -1,5 +1,46 @@
 # EasyInput Flasher 开发状态
 
+## 2026-09-01：CY Factory Release 兼容与项目链接
+
+- 关于页新增 easyinput-flasher GitHub 仓库和 CY-CHENYUE/easy-input-maker v0.4.53 Release 链接。
+- GitHub Release 读取支持仅含 `factory*.bin` 的 Factory 发布：标记为恢复项，下载后固定 `0x0` 写入；来源信任仍需用户确认，写入口令独立为“确认恢复出厂 <MAC>”。
+- 普通 manifest 三段 Release 合同未改变；Factory 远程兼容未做实板写入验证。
+
+## 2026-09-01：烧录详情与页内日志
+
+- 烧录页现在直接展示当前镜像、manifest 固定写入地址、当前段已写入/总字节数和设备端 Hash 校验方式；进度来自纯 Go `espflasher` 的真实写入回调，而非阶段估算。
+- 页内“最近活动”扩展为最近六条，保留各镜像开始/完成记录；详细日志页仍可导出诊断。
+- 深浅主题均为新增详情卡提供边框、背景和文本覆盖。验证：Go vet、application 测试编译、定向 Go 测试、前端 typecheck/build、差异检查通过；未实板验证。
+
+## 2026-09-01：Factory 独立恢复入口
+
+- 固件库支持导入单文件 Factory 镜像并标记为独立恢复项；固定写入 `0x0`，界面显示清除 NVS 配置和蓝牙绑定的风险，确认口令改为“确认恢复出厂 <MAC>”。
+- 普通三段固件入口和校验合同未改变；Factory 入口仅接受本地导入的 `.bin`，未进行实板验证。
+- 验证：Go vet、application 测试编译、配置/固件/烧录器测试和差异检查通过；前端构建此前已通过。
+
+## 2026-09-01：本地 ZIP 导入与实时写入进度
+
+- 固件库新增“导入本地 ZIP”：后端解码固定 ZIP、拒绝目录穿越、解析并校验 `firmware-manifest.json` 与三段镜像 SHA-256，成功后加入本地固件列表；不接受任意路径或偏移。
+- 纯 Go 烧录调用已接入 `espflasher` 进度回调，前端可看到实时写入百分比与字节数；本地工程编译调度和 Factory 恢复入口本轮未实现。
+- 验证：`go vet ./...`、application 测试编译、前端 typecheck/build、`git diff --check` 通过；application 测试执行仍被 Windows `Access is denied` 拦截，未进行实板烧录。
+
+## 2026-09-01：社区 factory 镜像提示与内嵌说明
+
+- 发现页审计现在会识别公开 Release 中的整片 `factory*.bin`，并明确提示不能安全自动拆分；`Ready` 仍要求 manifest + bootloader + partition table + application 四类标准资产。
+- 关于与帮助页新增内嵌快速说明，覆盖 BOOT 下载模式、完整固件选择、MAC 确认、关机恢复和社区仓库文件不足时的补齐路径；不依赖外部网页才能查看。
+- 已同步 `docs/FIRMWARE_PUBLISHING.md` 与 `docs/COMMUNITY_FIRMWARE_GUIDE.md`，说明整片镜像可能覆盖配置分区，补齐应由固件仓库 Actions 生成标准三段镜像与 manifest。
+- 已核对 `CY-CHENYUE/easy-input-maker` 当前公开 Release 只有 `easy-input-maker-v0.4.53-esp32s3-factory.bin` 与 `SHA256SUMS.txt`，且未发现标准固件发布 workflow；未将其误标为可烧录来源。
+- 验证：Go firmware/config/flasher 定向测试、`go vet ./...`、前端 typecheck/build、`git diff --check` 通过；未进行实板写入或远端仓库修改。
+
+## 2026-08-31：首次对话设计复盘文档
+
+- 已新增 `docs/首次对话设计复盘.md`，基于本机可访问的首次方案会话、项目进展、决策、Git 历史和项目记忆，记录需求到设计、实现边界、踩坑、复用步骤及社区接入路线。
+- 文档将公开答复与用户原始提示按左右对照呈现；不包含内部推理、工具日志或敏感资料，并列出会话文件与消息序号供本机追溯。
+- 内容明确区分可构建/可审计的软件状态与尚待真实板卡验证的下载、写入、HID 恢复和功能回归，未改变任何烧录、发布或设备逻辑。
+- 文末新增面向 GitHub 的共创邀请，将产品定位为硬件应用 Hub；欢迎应用、兼容性、文档和测试贡献，但可写入固件仍须遵循 Release、manifest、哈希、审核和实机证据边界。
+- 复盘文档已改为“复刻指南 + 设计复盘”：开头新增可按七步执行的最小闭环、目录边界、硬件/固件/发布/桌面端合同、验收顺序和复刻前检查表，历史对话与设计原因保留在后文。
+- 复刻指南的写入门禁已明确要求：真正写入前再次只读验身，MAC 尾号必须与本轮确认对象一致；不一致时保留脱敏诊断并终止，避免同端口设备替换窗口。
+
 ## 2026-08-31：S3 验身与 Release 拉取修复
 
 - ESP32-S3 下载端口的只读复核已确认可连通；旧实现错误调用 `chip-id`，该子命令在 S3 上会在读取 MAC 后返回非零，导致 UI 将有效端口误报为工具失败。
