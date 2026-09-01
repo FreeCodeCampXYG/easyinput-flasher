@@ -1,10 +1,9 @@
-//go:build !windows
+//go:build !windows && !darwin
 
 package device
 
 import (
 	"fmt"
-	"runtime"
 	"sort"
 	"time"
 
@@ -22,12 +21,7 @@ func ListPorts() ([]domain.DeviceInfo, error) {
 	now := time.Now().UTC().Format(time.RFC3339)
 	devices := make([]domain.DeviceInfo, 0, len(ports))
 	for _, port := range ports {
-		devices = append(devices, domain.DeviceInfo{
-			ID: port, Port: port, Label: port, Mode: "serial-candidate", ObservedAt: now,
-		})
-	}
-	if runtime.GOOS != "windows" {
-		return devices, nil
+		devices = append(devices, domain.DeviceInfo{ID: port, Port: port, Label: port, Mode: "serial-candidate", ObservedAt: now})
 	}
 	return devices, nil
 }

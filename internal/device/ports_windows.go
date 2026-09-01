@@ -29,7 +29,8 @@ func ListPorts() ([]domain.DeviceInfo, error) {
 	seen := make(map[string]bool)
 	knownPorts := make(map[string]bool)
 
-	if pnp, err := listPnPDevices(); err == nil {
+	pnp, pnpErr := listPnPDevices()
+	if pnpErr == nil {
 		for _, item := range pnp {
 			id := item.InstanceID
 			mode := "normal"
@@ -61,6 +62,11 @@ func ListPorts() ([]domain.DeviceInfo, error) {
 	ports, err := serial.GetPortsList()
 	if err != nil && len(devices) == 0 {
 		return nil, fmt.Errorf("读取设备列表失败: %w", err)
+	}
+	// PnP 查询成功但没有命中 EasyInput 时，不把系统全部 COM 口伪装成目标板；
+	// 只有查询能力不可用时才保留串口候选，后续仍必须经过 ESP32-S3 ROM 验身。
+	if pnpErr == nil {
+		return devices, nil
 	}
 	for _, port := range ports {
 		if seen[port] || knownPorts[port] {

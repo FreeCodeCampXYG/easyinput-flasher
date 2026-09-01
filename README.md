@@ -15,7 +15,11 @@ EasyInput Flasher 是 EasyInput V2.0 的固件烧录与硬件诊断工具。它�
 3. 解压后运行 `easyinput-flasher.exe`。应用未签名时，Windows/macOS 可能要求你在系统安全提示中明确确认运行。
 4. 发布页提供同名 `.sha256` 文件；下载后建议校验归档完整性。
 
-Windows x64 是当前完成本机构建验证的目标。其他平台由 GitHub Actions 原生 runner 打包；CI 成功不等同于真实设备烧录已验证。
+Windows x64 是当前完成本机构建验证的目标。macOS Intel/Apple Silicon 与 Linux 由 GitHub Actions 原生 runner 打包；CI 成功不等同于真实设备烧录已验证。
+
+### macOS 使用说明
+
+macOS 版本会扫描 `/dev/cu.*` 串口作为下载端口候选，并通过系统 USB/Bluetooth 信息识别正常模式的 EasyInput AI。进入下载模式后，仍必须在应用中重新读取 ESP32-S3 与 MAC，再确认写入。首次运行未签名应用时，按住 Control 点击应用并选择“打开”，不要关闭系统安全防护。当前 macOS 尚未完成 Apple Silicon/Intel 实板回归，遇到端口或 HID 恢复问题请提交脱敏日志。
 
 ### Windows 安全提示与误报
 
@@ -27,7 +31,7 @@ Windows x64 是当前完成本机构建验证的目标。其他平台由 GitHub 
 Get-FileHash .\easyinput-flasher-v<版本>-windows-x64-portable.zip -Algorithm SHA256
 ```
 
-若 Windows Defender 隔离了已校验的 `easyinput-flasher.exe`，请在“Windows 安全中心 -> 保护历史记录”确认文件名、Release 版本和 SHA-256 后，再选择“允许在设备上”。不要关闭实时防护，也不要给整个磁盘或下载目录添加排除项。请在 [Issue](https://github.com/FreeCodeCampXYG/easyinput-flasher/issues) 附上拦截名称、Defender 版本、Release 版本和 ZIP SHA-256；不要上传设备日志、MAC 地址或其他隐私数据。
+若 Windows Defender、火绒或其他安全软件在解压/首次运行时隔离文件，请先确认下载来源、Release 版本和 ZIP SHA-256，再在对应安全软件的“保护历史/隔离区”中对**这一份已校验文件**做允许或恢复。不要关闭实时防护，也不要给整个磁盘、下载目录或整个仓库添加排除项。请在 [Issue](https://github.com/FreeCodeCampXYG/easyinput-flasher/issues) 附上拦截名称、软件版本、Release 版本和 ZIP SHA-256；不要上传设备日志、MAC 地址或其他隐私数据。
 
 开发者自行编译时如遇误报，只应为自己的 `build\bin` 输出目录建立临时精确排除项。该开发环境做法不适用于下载者，也不能替代发布包校验。
 

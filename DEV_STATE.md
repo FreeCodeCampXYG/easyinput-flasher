@@ -1,5 +1,13 @@
 # EasyInput Flasher 开发状态
 
+## 2026-09-01：诊断页可读性与设备检测收紧
+
+- 诊断页按 EasyInput V2.0 的真实证据边界重排为“自动验身 / 用户操作 / 运行态观察 / 待固件验证”分组，增加推荐顺序、设备模式提示和结果汇总；未验证项仍不会伪造通过。
+- 修复浅色主题诊断卡标题和说明继承近白文字的问题，补齐卡片、说明、选择框和操作按钮的对比度覆盖。
+- Windows PnP 查询成功但未命中 EasyInput 时不再把系统所有 COM 口列为目标板；仅在 PnP 查询失败时保留串口候选，并继续要求 ESP32-S3 ROM 验身。
+- README 增加火绒/Defender 解压隔离处理边界：先核对官方来源与 SHA-256，再仅允许已校验文件，不关闭实时防护或宽泛加白。
+- 验证：前端 `npm run typecheck`、`npm run build` 通过；Go 定向包编译通过，`internal/application` 测试执行仍被 Windows `Access is denied` 拦截；未做实板检测。
+
 ## 2026-09-01：更新日志时间轴增强
 
 - 更新与通知页采用纵向版本时间轴，当前版本 v0.1.12 以高亮节点和卡片突出显示，按日期展示版本、变更内容与规划状态。
@@ -65,6 +73,12 @@
 - 默认及旧版设置均使用用户指定的 `http://127.0.0.1:1080`，烧录页启动时自动请求 `FreeCodeCampXYG/easy-input-maker` 的 Release；读取失败会进入运行日志和界面提示，不再静默显示空列表。
 - 已核验 `firmware-v0.2.1` Release 含 `firmware-manifest.json`、bootloader、分区表和应用镜像；实际下载、写入及恢复仍待新版桌面包与实板验证。
 - 已调研纯 Go 候选 `tinygo.org/x/espflasher v0.8.1`：其声明支持 ESP32-S3 / USB-JTAG；由于项目依赖治理库无该条目，本轮未将其加入正式依赖或发布包。
+
+## 2026-09-01：macOS 设备枚举与恢复检测
+
+- macOS 新增专用设备扫描：串口标记为下载候选，`ioreg`/`system_profiler` 识别 EasyInput USB/Bluetooth 正常模式；恢复检查不再固定返回失败。
+- 下载端口仍由 ESP32-S3 ROM 读取芯片与 MAC 进行最终验身，未放宽 manifest、哈希和人工确认门禁。
+- 已通过 macOS amd64/arm64 Go 测试二进制交叉编译、Windows 本机定向测试、`go vet` 与 `git diff --check`；未在真实 Mac 或实板上验证。
 
 ## 当前目标
 
