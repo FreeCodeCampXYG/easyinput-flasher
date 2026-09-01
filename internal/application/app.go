@@ -582,7 +582,11 @@ func (a *App) updateFlashDetails(image, address string, current, total int) {
 	a.status.CurrentBytes, a.status.TotalBytes = current, total
 	a.mu.Unlock()
 	if current == 0 || current >= total {
-		a.appendLog("info", "烧录", fmt.Sprintf("写入 %s at %s（%d%%）", image, address, percentOf(current, total)))
+		if current >= total {
+			a.appendLog("success", "烧录", fmt.Sprintf("写入完成 %s at %s（100%%）", image, address))
+		} else {
+			a.appendLog("info", "烧录", fmt.Sprintf("开始写入 %s at %s", image, address))
+		}
 	}
 }
 

@@ -282,6 +282,7 @@ function App() {
             onStart={handleStartFlash}
             onCancel={handleCancel}
             onRecovery={handleRecovery}
+            onViewLogs={() => setPage("devices")}
           />
         );
     }
@@ -404,6 +405,7 @@ interface FlashPageProps {
   onStart: () => void;
   onCancel: () => void;
   onRecovery: () => void;
+  onViewLogs: () => void;
 }
 
 function FlashPage(props: FlashPageProps) {
@@ -426,6 +428,7 @@ function FlashPage(props: FlashPageProps) {
     onStart,
     onCancel,
     onRecovery,
+    onViewLogs,
   } = props;
   const busy = isBusyStage(snapshot.progress.stage);
   const complete = snapshot.progress.stage === "complete";
@@ -547,6 +550,7 @@ function FlashPage(props: FlashPageProps) {
               <span>校验方式 <code>设备端 Hash</code></span>
             </div>}
           </div>
+          <FlashDetailPanel snapshot={snapshot} />
 
           {complete ? (
             <CompletionPanel snapshot={snapshot} firmware={firmware} />
@@ -610,7 +614,7 @@ function FlashPage(props: FlashPageProps) {
           <div className="log-peek">
             <div className="log-peek-head">
               <span><TerminalSquare size={15} />最近活动</span>
-              <button type="button">查看全部 <ChevronRight size={14} /></button>
+              <button type="button" onClick={onViewLogs}>查看全部 <ChevronRight size={14} /></button>
             </div>
             {snapshot.logs.slice(-6).map((log) => <LogRow key={log.id} log={log} />)}
           </div>
@@ -618,6 +622,26 @@ function FlashPage(props: FlashPageProps) {
       </section>
     </div>
   );
+}
+
+function FlashDetailPanel({ snapshot }: { snapshot: DashboardSnapshot }) {
+  const flashLogs = snapshot.logs.filter((log) => log.scope === "烧录");
+  const images = [
+    { name: "bootloader.bin", address: "0x0" },
+    { name: "partition-table.bin", address: "0x8000" },
+    { name: "easy_input_keyboard.bin", address: "0x10000" },
+  ];
+  return <section className="flash-detail-panel">
+    <div className="flash-detail-heading"><strong>完整烧录明细</strong><span>{flashLogs.length ? `${flashLogs.length} 条写入记录` : "等待写入"}</span></div>
+    <div className="flash-image-list">{images.map((image) => {
+      const related = flashLogs.filter((log) => log.message.includes(image.name));
+      const started = related.some((log) => /开始写入|0%/.test(log.message));
+      const done = related.some((log) => /写入完成|100%|校验通过/.test(log.message));
+      const active = snapshot.progress.currentImage === image.name;
+      return <div className={`flash-image-row ${done ? "done" : ""} ${active ? "active" : ""}`} key={image.name}><span className="flash-image-dot">{done ? <Check size={11} /> : active ? <LoaderCircle size={11} className="spin" /> : <span />}</span><div><strong>{image.name}</strong><span>{image.address}{active && snapshot.progress.currentBytes !== undefined ? ` · ${formatBytes(snapshot.progress.currentBytes)} / ${formatBytes(snapshot.progress.totalBytes ?? 0)}` : related[related.length - 1]?.message ?? "尚未开始"}</span></div><StatusPill tone={done ? "success" : active ? "warning" : "neutral"}>{done ? "已完成" : active ? `${snapshot.progress.percent}%` : started ? "已开始" : "等待"}</StatusPill></div>;
+    })}</div>
+    {flashLogs.length > 0 && <div className="flash-log-lines">{flashLogs.map((log) => <div key={log.id}><time>{log.time}</time><span>{log.message}</span></div>)}</div>}
+  </section>;
 }
 
 function FlashStepper({ stage }: { stage: FlashStage }) {

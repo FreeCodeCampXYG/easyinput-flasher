@@ -1,5 +1,30 @@
 # EasyInput Flasher 开发状态
 
+## 2026-09-02：烧录段日志语义修正
+
+- 烧录段在开始时显示“开始写入 + 地址”，完成时显示“写入完成 + 100%”，不再把开始事件显示成含义不明的 `0%`。
+- 完整烧录明细根据开始/完成事件分别显示“已开始、进行中、已完成”；最近活动仍只保留预览，完整记录可从设备与日志页查看。
+- 验证：前端 typecheck/build、Go 定向测试和 go vet 通过；application 测试执行仍被 Windows `Access is denied` 拦截。
+
+## 2026-09-02：完整烧录明细面板
+
+- 烧录页右侧新增完整烧录明细，固定列出 bootloader、partition table、application 三段镜像及地址、当前段进度、完成状态和对应烧录日志。
+- 明细状态来自后端真实进度/日志字段，不再只显示总进度 100%；查看全部仍跳转设备与日志页。
+- 验证：前端 typecheck/build、git diff --check 通过。
+
+## 2026-09-02：烧录页右栏间距与日志入口
+
+- 右侧“写入控制”栏补齐内边距和模块间距，避免完成状态、进度条和日志贴边拥挤。
+- “查看全部”现在会跳转到“设备与日志”页，不再是无动作的装饰按钮。
+- 验证：前端 typecheck/build、git diff --check 通过；未做桌面截图回归。
+
+## 2026-09-02：诊断请求改用 Maker Output Report
+
+- 已确认无诊断效果的根因：Maker 原先把 `0x13` 定义为 Feature Report，而 Go HID 依赖只能通过 Output Report 写入。
+- Maker 端已将 `0x13` 改为 Output 请求；Flasher 保持 16 字节请求和现有分片响应解析。
+- 需要先构建并烧录包含该 Maker 修复的新固件；旧固件不会响应当前 Flasher 的状态请求。
+- 验证：Maker 状态协议单测通过；Flasher Go 定向测试、go vet、前端构建通过；application 测试受 Windows `Access is denied` 拦截，实板待验证。
+
 ## 2026-09-01：Windows ARM64 原生构建的 HID 依赖降级
 
 - 根因：ARM64 runner 没有可用的 Windows ARM64 hidapi/CGO 编译器，`karalabe/hid` 在 Wails 原生构建阶段调用 x64 GCC，报 `gcc_arm64.S` 指令错误。
