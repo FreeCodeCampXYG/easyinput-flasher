@@ -1,5 +1,11 @@
 # EasyInput Flasher 开发状态
 
+## 2026-09-01：Windows ARM64 CI 的 CGO 测试修复
+
+- 根因：Windows ARM64 runner 的 `go test ./...` 启用 CGO 后，`karalabe/hid` 的 C 源文件被 x64 GCC 汇编，报 `stp x29,x30` 等 ARM64 指令错误。
+- 修复：CI 的 Go 单测和 vet 阶段设置 `CGO_ENABLED=0`，使用 HID 库的纯 Go 不支持实现；原生 Wails 构建保持 CGO，不影响实际 Windows HID 能力。
+- 验证：本地 `CGO_ENABLED=0 go test ./...` 中非 application 包通过；application 测试仍被 Windows `Access is denied` 拦截；已通过 `go vet` 与差异检查。
+
 ## 2026-09-01：正常 HID 遥测读取与真实输入联动
 
 - 新增纯 Go HID 状态读取：复用 Maker 现有 Vendor HID `0x13` 状态请求和 `0x11/0x04` 分片回报，读取 `diag.last`、输入事件计数、旋钮步进、电池和供电状态。

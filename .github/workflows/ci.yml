@@ -55,8 +55,13 @@ jobs:
           $unformatted = gofmt -l .
           if ($unformatted) { $unformatted; exit 1 }
       - name: Test Go
+        # HID 运行时只在原生应用构建中启用；跨平台单测关闭 CGO，避免 ARM64 runner 将 hidapi C 汇编交给错误架构的 GCC。
+        env:
+          CGO_ENABLED: 0
         run: go test ./...
       - name: Vet Go
+        env:
+          CGO_ENABLED: 0
         run: go vet ./...
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.14.0
