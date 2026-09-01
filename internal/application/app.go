@@ -208,6 +208,51 @@ func (a *App) ScanDevices() ([]domain.DeviceInfo, error) {
 	return devices, nil
 }
 
+// RunHardwareDiagnostics 汇总自动验身与需用户观察的板级检查，未知项明确保留为待验证。
+func (a *App) RunHardwareDiagnostics(deviceID string) (domain.HardwareDiagnosticSnapshot, error) {
+	a.mu.RLock()
+	item, found := a.devices[deviceID]
+	a.mu.RUnlock()
+	if !found {
+		return domain.HardwareDiagnosticSnapshot{}, fmt.Errorf("设备已变化，请重新扫描")
+	}
+	items := []domain.HardwareDiagnosticItem{
+		{Key: "chip", Label: "ESP32-S3 芯片", Evidence: "自动检测", Status: "pending", Detail: "进入下载模式后读取"},
+		{Key: "flash", Label: "Flash / W25Q128", Evidence: "自动检测", Status: "pending", Detail: "读取 Flash ID；容量需结合芯片响应确认"},
+		{Key: "psram", Label: "8 MB PSRAM", Evidence: "固件自检", Status: "unknown", Detail: "烧录器无法从 ROM 单独证明，需运行态固件自检"},
+		{Key: "keys", Label: "S1-S8 按键", Evidence: "用户操作", Status: "pending", Detail: "逐个按下并确认界面收到事件"},
+		{Key: "encoder", Label: "编码器 A/B 与按压", Evidence: "用户操作", Status: "pending", Detail: "顺时针、逆时针旋转并按压一次"},
+		{Key: "led", Label: "WS2812 与状态灯", Evidence: "用户观察", Status: "pending", Detail: "运行态测试灯效，确认 5 颗灯与绿色状态灯"},
+		{Key: "audio_in", Label: "I2S 麦克风", Evidence: "用户观察", Status: "pending", Detail: "运行态显示输入电平或录音回波"},
+		{Key: "audio_out", Label: "I2S 功放/扬声器", Evidence: "用户观察", Status: "pending", Detail: "播放测试音并确认无明显杂音"},
+		{Key: "power", Label: "VIN / CHRG / VBAT", Evidence: "固件读数", Status: "unknown", Detail: "需运行态固件读取；VBAT 只能估算电压，不能等同剩余电量"},
+		{Key: "usb_ble", Label: "USB / BLE HID", Evidence: "系统枚举", Status: "pending", Detail: "恢复正常模式后确认 HID 枚举与输入"},
+	}
+	if item.Mode != "download" {
+		for i := range items {
+			if items[i].Evidence == "自动检测" {
+				items[i].Status = "blocked"
+				items[i].Detail = "请先开机短按并松开 BOOT，再刷新下载端口"
+			}
+		}
+	} else {
+		runner, err := flasher.NewRunner()
+		if err != nil {
+			return domain.HardwareDiagnosticSnapshot{}, err
+		}
+		ctx, cancel := context.WithTimeout(a.ctx, 15*time.Second)
+		defer cancel()
+		info, err := runner.InspectHardware(ctx, item.Port)
+		if err != nil {
+			return domain.HardwareDiagnosticSnapshot{}, err
+		}
+		items[0].Status, items[0].Detail = "passed", info.Chip
+		items[1].Status, items[1].Detail = "passed", fmt.Sprintf("厂商 0x%02X · 设备 0x%04X", info.FlashManufacturer, info.FlashDevice)
+	}
+	a.appendLog("info", "硬件诊断", fmt.Sprintf("完成 %s 的自动验身与板级检查清单", item.Port))
+	return domain.HardwareDiagnosticSnapshot{DeviceID: deviceID, Items: items}, nil
+}
+
 func (a *App) InspectDevice(deviceID string) (domain.DeviceInfo, error) {
 	a.mu.RLock()
 	item, found := a.devices[deviceID]

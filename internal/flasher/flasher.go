@@ -15,6 +15,13 @@ import (
 // Runner 是纯 Go 烧录器适配层；前端只能请求固定流程，不能传入串口命令或偏移。
 type Runner struct{}
 
+type HardwareInfo struct {
+	Chip              string
+	MAC               string
+	FlashManufacturer uint8
+	FlashDevice       uint16
+}
+
 func NewRunner() (*Runner, error) { return &Runner{}, nil }
 
 func (r *Runner) Inspect(ctx context.Context, port string) (string, error) {
@@ -31,6 +38,26 @@ func (r *Runner) Inspect(ctx context.Context, port string) (string, error) {
 		return "", fmt.Errorf("目标端口不是 ESP32-S3，已停止")
 	}
 	return fmt.Sprintf("Chip type: %s\nMAC: %s", flasher.ChipName(), mac), nil
+}
+
+func (r *Runner) InspectHardware(ctx context.Context, port string) (HardwareInfo, error) {
+	flasher, err := openROM(ctx, port)
+	if err != nil {
+		return HardwareInfo{}, err
+	}
+	defer flasher.Close()
+	mac, err := flasher.MAC()
+	if err != nil {
+		return HardwareInfo{}, fmt.Errorf("读取设备 MAC 失败: %w", err)
+	}
+	if flasher.ChipType() != espflasher.ChipESP32S3 {
+		return HardwareInfo{}, fmt.Errorf("目标端口不是 ESP32-S3")
+	}
+	manufacturer, device, err := flasher.FlashID()
+	if err != nil {
+		return HardwareInfo{}, fmt.Errorf("读取 Flash ID 失败: %w", err)
+	}
+	return HardwareInfo{Chip: flasher.ChipName(), MAC: mac.String(), FlashManufacturer: manufacturer, FlashDevice: device}, nil
 }
 
 func (r *Runner) Flash(ctx context.Context, port, bundleRoot string, manifest domain.FirmwareManifest, progress func(current, total int)) (string, error) {

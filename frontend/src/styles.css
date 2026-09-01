@@ -1340,6 +1340,20 @@ code {
   border-left: 1px solid var(--line);
 }
 
+.timeline-item.current .timeline-content {
+  padding: 14px 16px 15px;
+  border: 1px solid rgba(25, 201, 155, .42);
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+
+.timeline-item.current .timeline-marker {
+  width: 11px;
+  height: 11px;
+  left: -6px;
+  box-shadow: 0 0 0 4px rgba(25, 201, 155, .15);
+}
+
 .timeline-marker {
   position: absolute;
   top: 4px;
@@ -1503,6 +1517,23 @@ code {
   color: var(--accent);
   font-family: var(--mono);
 }
+
+.diagnostic-toolbar { display: flex; align-items: end; gap: 16px; margin: 18px 0; }
+.diagnostic-legend { display: flex; gap: 12px; padding-bottom: 10px; color: var(--muted); font-size: 10px; }
+.diagnostic-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.diagnostic-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.diagnostic-card { padding: 14px; border: 1px solid var(--line-soft); background: var(--surface-2); }
+.diagnostic-card > div:first-child { display: flex; justify-content: space-between; gap: 8px; }
+.diagnostic-card strong { font-size: 12px; }
+.diagnostic-card > div:first-child span { color: var(--muted); font-size: 10px; }
+.diagnostic-card p { margin: 9px 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
+.diagnostic-card.passed { border-color: rgba(25, 201, 155, .45); }
+.diagnostic-card.blocked { border-color: rgba(221, 169, 64, .45); }
+.diagnostic-actions { display: flex; gap: 7px; }
+.diagnostic-actions .button { padding: 6px 9px; font-size: 10px; }
+.diagnostic-empty { display: grid; justify-items: center; gap: 8px; padding: 70px 20px; border: 1px dashed var(--line); color: var(--muted); text-align: center; }
+.diagnostic-empty strong { color: var(--text); font-size: 13px; }
+.diagnostic-empty span { max-width: 520px; font-size: 10px; line-height: 1.7; }
 
 .factory-warning {
   display: flex;
@@ -1677,7 +1708,10 @@ code {
 .theme-light .about-grid section { border-color: #e7ebf0; }
 .theme-light .help-embed { border-color: #d8dee6; background: #ffffff; }
 .theme-light .help-steps details { border-color: #e7ebf0; background: #f7f9fb; }
+.theme-light .timeline-item.current .timeline-content { border-color: #a8dfcf; background: #f3fbf8; }
 .theme-light .flash-detail-grid { border-color: #d8dee6; background: #f7f9fb; color: #596675; }
+.theme-light .diagnostic-card { border-color: #d8dee6; background: #f7f9fb; }
+.theme-light .diagnostic-card.passed { border-color: #a8dfcf; }
 
 @media (max-width: 1120px) {
   :root {

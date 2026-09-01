@@ -106,3 +106,16 @@ type ActivityLog struct {
 	Scope   string `json:"scope"`
 	Message string `json:"message"`
 }
+
+type HardwareDiagnosticItem struct {
+	Key      string `json:"key"`
+	Label    string `json:"label"`
+	Evidence string `json:"evidence"`
+	Status   string `json:"status"`
+	Detail   string `json:"detail"`
+}
+
+type HardwareDiagnosticSnapshot struct {
+	DeviceID string                   `json:"deviceId"`
+	Items    []HardwareDiagnosticItem `json:"items"`
+}

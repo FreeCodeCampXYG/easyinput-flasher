@@ -3,6 +3,7 @@ export type PageId =
   | "library"
   | "discover"
   | "devices"
+  | "diagnostics"
   | "updates"
   | "about";
 
@@ -117,3 +118,6 @@ export interface OperationResult {
   ok: boolean;
   message?: string;
 }
+
+export interface HardwareDiagnosticItem { key: string; label: string; evidence: string; status: "passed" | "pending" | "blocked" | "unknown"; detail: string; }
+export interface HardwareDiagnosticSnapshot { deviceId: string; items: HardwareDiagnosticItem[]; }

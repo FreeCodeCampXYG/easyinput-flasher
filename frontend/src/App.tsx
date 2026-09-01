@@ -53,6 +53,7 @@ import {
   exportDiagnostics,
   importLocalBundle,
   importFactoryBundle,
+  runHardwareDiagnostics,
   listFirmware,
   scanDevices,
   startFlash,
@@ -67,6 +68,7 @@ import type {
   FirmwareRelease,
   FirmwareSourceAudit,
   FlashStage,
+  HardwareDiagnosticSnapshot,
   PageId,
 } from "./types";
 
@@ -75,6 +77,7 @@ const NAV_ITEMS: Array<{ id: PageId; label: string; icon: typeof Zap }> = [
   { id: "library", label: "固件库", icon: Library },
   { id: "discover", label: "发现", icon: Search },
   { id: "devices", label: "设备与日志", icon: MonitorCog },
+  { id: "diagnostics", label: "硬件诊断", icon: Activity },
   { id: "updates", label: "更新与通知", icon: Bell },
   { id: "about", label: "关于与帮助", icon: CircleHelp },
 ];
@@ -241,6 +244,8 @@ function App() {
         return <DiscoverPage onFirmwareChanged={applySnapshot} />;
       case "devices":
         return <DevicesPage devices={snapshot.devices} logs={snapshot.logs} onExport={exportDiagnostics} />;
+      case "diagnostics":
+        return <DiagnosticsPage devices={snapshot.devices} onRun={runHardwareDiagnostics} />;
       case "updates":
         return (
           <UpdatesPage
@@ -428,8 +433,8 @@ function FlashPage(props: FlashPageProps) {
     <div className="page page-flash">
       <PageHeader
         eyebrow="固件交付工作台"
-        title="安全烧录"
-        description="从受信 GitHub Release 获取固件，完成设备验身、写入校验和启动恢复。"
+        title="EasyInput 固件烧录与硬件诊断工具"
+        description="从受信 Release 或本地固件包完成设备验身、风险确认、地址级写入和恢复检查。"
         actions={
           <button className="button secondary" type="button" onClick={onScan} disabled={pendingAction === "scan" || busy}>
             <RefreshCw size={16} className={pendingAction === "scan" ? "spin" : ""} />
@@ -822,10 +827,27 @@ function DevicesPage({ devices, logs, onExport }: { devices: DeviceInfo[]; logs:
   );
 }
 
+function DiagnosticsPage({ devices, onRun }: { devices: DeviceInfo[]; onRun: (deviceId: string) => Promise<HardwareDiagnosticSnapshot> }) {
+  const [deviceId, setDeviceId] = useState(devices[0]?.id ?? "");
+  const [report, setReport] = useState<HardwareDiagnosticSnapshot>();
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  const mark = (key: string, status: "passed" | "blocked") => setReport((current) => current ? { ...current, items: current.items.map((item) => item.key === key ? { ...item, status, detail: status === "passed" ? "用户已确认本项表现正常" : "用户标记为异常，请导出诊断并检查硬件" } : item) } : current);
+  const run = async () => { if (!deviceId) return; setBusy(true); setNotice(""); try { setReport(await onRun(deviceId)); } catch (error) { setNotice(error instanceof Error ? error.message : "硬件诊断失败"); } finally { setBusy(false); } };
+  return <div className="page">
+    <PageHeader eyebrow="板级体检" title="硬件诊断" description="自动验身与用户引导式检查分开记录；未验证项目不会被误报为硬件正常。" actions={<button className="button primary" type="button" onClick={run} disabled={!deviceId || busy}>{busy ? <LoaderCircle size={16} className="spin" /> : <Activity size={16} />}开始诊断</button>} />
+    <div className="diagnostic-toolbar"><label className="field grow"><span>目标设备</span><select value={deviceId} onChange={(event) => setDeviceId(event.target.value)}><option value="">未发现设备</option>{devices.map((item) => <option key={item.id} value={item.id}>{item.port} · {item.product}</option>)}</select></label><div className="diagnostic-legend"><span><CheckCircle2 size={14} />自动/已通过</span><span><Clock3 size={14} />需操作</span><span><Info size={14} />未知边界</span></div></div>
+    {notice && <div className="inline-error">{notice}</div>}
+    {!report ? <div className="diagnostic-empty"><Activity size={28} /><strong>选择设备后开始板级体检</strong><span>下载模式可读取芯片和 Flash ID；按键、旋钮、灯光、音频和 HID 需要按提示逐项观察。</span></div> : <section className="diagnostic-grid">{report.items.map((item) => <article className={`diagnostic-card ${item.status}`} key={item.key}><div><strong>{item.label}</strong><span>{item.evidence}</span></div><StatusPill tone={item.status === "passed" ? "success" : item.status === "unknown" ? "neutral" : "warning"}>{item.status === "passed" ? "通过" : item.status === "blocked" ? "需先验身" : item.status === "unknown" ? "待验证" : "待操作"}</StatusPill><p>{item.detail}</p>{item.status === "pending" && <div className="diagnostic-actions"><button type="button" className="button secondary" onClick={() => mark(item.key, "passed")}>标记通过</button><button type="button" className="button ghost" onClick={() => mark(item.key, "blocked")}>标记异常</button></div>}</article>)}</section>}
+  </div>;
+}
+
 function UpdatesPage({ currentVersion, availableVersion, onCheck, checking }: { currentVersion: string; availableVersion?: string; onCheck: () => void; checking: boolean }) {
   const timeline = [
-    { version: "v0.1.0", date: "2026-08-30", title: "首个公开预览版", items: ["受信 GitHub Release 下载", "ESP32-S3 设备验身与烧录状态机", "固件库、发现、日志与帮助中心"] },
-    { version: "规划", date: "下一版本", title: "社区来源审核与自动更新", items: ["来源订阅与变更通知", "构建溯源证明展示", "更多实机验证结果"] },
+    { version: "v0.1.12", date: "2026-09-01", title: "本地固件与 Factory 恢复", items: ["固定格式本地 ZIP 校验", "CY Factory Release 兼容与 0x0 恢复写入", "Factory 清除 NVS/蓝牙绑定的独立风险确认"] },
+    { version: "v0.1.11", date: "2026-08-31", title: "社区固件来源门禁", items: ["Release、workflow 和 manifest 脚本审计", "受信来源 allow-list 与三段镜像固定偏移", "社区共建规范和内嵌帮助说明"] },
+    { version: "v0.1.10", date: "2026-08-31", title: "烧录详情与主题优化", items: ["当前镜像、写入地址、字节进度和 Hash 校验", "烧录页最近活动日志", "深色/浅色主题详情卡适配"] },
+    { version: "规划", date: "后续版本", title: "本地工程构建扩展", items: ["检测本机 ESP-IDF 并调用 idf.py build", "读取 flasher_args 生成临时清单", "更多实板元件诊断记录"] },
   ];
   return (
     <div className="page">
@@ -833,7 +855,7 @@ function UpdatesPage({ currentVersion, availableVersion, onCheck, checking }: { 
       <div className="update-status"><div className="update-icon"><Sparkles size={22} /></div><div><strong>{availableVersion ? `发现新版本 ${availableVersion}` : "当前已是最新版本"}</strong><span>当前版本 {currentVersion} · GitHub Release 通道</span></div>{availableVersion && <button className="button primary" type="button"><CloudDownload size={16} />查看更新</button>}</div>
       <section className="timeline">
         {timeline.map((item) => (
-          <article className="timeline-item" key={`${item.version}-${item.date}`}>
+          <article className={`timeline-item ${item.version === "v0.1.12" ? "current" : ""}`} key={`${item.version}-${item.date}`}>
             <div className="timeline-marker" />
             <div className="timeline-date">{item.date}</div>
             <div className="timeline-content"><div><strong>{item.title}</strong><StatusPill tone={item.version === "规划" ? "neutral" : "success"}>{item.version}</StatusPill></div><ul>{item.items.map((entry) => <li key={entry}>{entry}</li>)}</ul></div>
@@ -847,10 +869,10 @@ function UpdatesPage({ currentVersion, availableVersion, onCheck, checking }: { 
 function AboutPage({ version }: { version: string }) {
   return (
     <div className="page">
-      <PageHeader eyebrow="产品与支持" title="关于 EasyInput Flasher" description="面向 EasyInput V2.0 的可审计固件交付工具，让使用者无需本地 ESP-IDF 环境即可获取已构建产物。" />
+      <PageHeader eyebrow="产品与支持" title="EasyInput 固件烧录与硬件诊断工具" description="面向 EasyInput V2.0 的可审计烧录与板级体检工作台。" />
       <section className="about-intro">
         <img src="/app-icon.png" alt="EasyInput Flasher 图标" />
-        <div><h2>EasyInput Flasher</h2><p>版本 {version}</p><span>Wails + Go 桌面端 · React 工作台</span></div>
+        <div><h2>EasyInput 固件烧录与硬件诊断工具</h2><p>EasyInput Flasher · 版本 {version}</p><span>Wails + Go 桌面端 · React 工作台</span></div>
       </section>
       <div className="about-grid">
         <section><BookOpen size={20} /><div><strong>使用手册（内嵌）</strong><p>设备检测、下载模式、写入确认、恢复启动与故障排查。</p><a className="button secondary" href="#flasher-help">查看本页说明 <ChevronRight size={14} /></a></div></section>

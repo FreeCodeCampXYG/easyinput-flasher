@@ -1,6 +1,6 @@
 # EasyInput Flasher
 
-EasyInput Flasher 是 EasyInput V2.0 的桌面烧录工具。它从受信 GitHub Release 下载已构建固件，在本机校验版本化 manifest 和 SHA-256 后，识别 ESP32-S3 下载模式设备并以显式确认写入。
+EasyInput Flasher 是 EasyInput V2.0 的固件烧录与硬件诊断工具。它支持受信 GitHub Release、本地标准固件包和 Factory 恢复，在本机校验版本化 manifest、SHA-256 与设备身份后，完成地址级写入、恢复检查和板级体检。
 
 它不在电脑上编译固件、不上传设备数据、不执行 OTA，也不会默认擦除 Flash。
 
@@ -83,6 +83,8 @@ Get-FileHash .\easyinput-flasher-v<版本>-windows-x64-portable.zip -Algorithm S
 - [社区固件图文教程](docs/COMMUNITY_FIRMWARE_GUIDE.md)
 - [故障排查](docs/TROUBLESHOOTING.md)
 - [变更日志](CHANGELOG.md)
+
+应用内“更新与通知”页面也提供按版本排列的可视化时间轴，展示每个版本的功能变化与后续规划。
 
 ## 许可证
 
