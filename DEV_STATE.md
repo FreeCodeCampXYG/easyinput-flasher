@@ -1,5 +1,10 @@
 # EasyInput Flasher 开发状态
 
+## 2026-09-02：v0.1.20 已推送并触发六平台发布
+
+- 提交 `c3342fd` 已推送到 `origin/main`，annotated tag `v0.1.20` 已推送。
+- GitHub Release workflow run `33581134052` 已进入 `in_progress`，负责六平台编译、打包和 Release 创建；最终成功状态待回读。
+
 ## 2026-09-02：烧录确认与诊断交互提示
 
 - 烧录右栏改为桌面端滚动时保持可见的 sticky 控制区，确认口令增加“一键填入”，仍保留后端确认门禁。
