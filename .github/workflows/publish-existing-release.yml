@@ -11,6 +11,14 @@ on:
         description: Completed Release workflow run containing package artifacts
         required: true
         type: string
+      retry_run_id:
+        description: Optional Retry Platform Build run for one missing platform
+        required: false
+        type: string
+      retry_artifact:
+        description: Optional missing artifact name, for example easyinput-flasher-linux-x64
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -29,17 +37,26 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          RETRY_RUN_ID: ${{ inputs.retry_run_id }}
+          RETRY_ARTIFACT: ${{ inputs.retry_artifact }}
         run: |
           rm -rf dist
           mkdir -p dist
           for artifact in easyinput-flasher-windows-x64 easyinput-flasher-windows-arm64 easyinput-flasher-macos-intel easyinput-flasher-macos-arm64 easyinput-flasher-linux-x64 easyinput-flasher-linux-arm64; do
             gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$artifact" --dir "dist/$artifact" || true
           done
+          if [ -n "$RETRY_RUN_ID" ] || [ -n "$RETRY_ARTIFACT" ]; then
+            test -n "$RETRY_RUN_ID" && test -n "$RETRY_ARTIFACT"
+            gh run download "$RETRY_RUN_ID" --repo "$GITHUB_REPOSITORY" --name "$RETRY_ARTIFACT" --dir "dist/$RETRY_ARTIFACT"
+          fi
       - name: Verify package files
         shell: bash
         run: |
           rm -rf publish
           mkdir -p publish
+          for artifact in easyinput-flasher-windows-x64 easyinput-flasher-windows-arm64 easyinput-flasher-macos-intel easyinput-flasher-macos-arm64 easyinput-flasher-linux-x64 easyinput-flasher-linux-arm64; do
+            test -d "dist/$artifact"
+          done
           find dist -type f \( -name '*.zip' -o -name '*.tar.gz' -o -name '*.sha256' \) -print0 |
             while IFS= read -r -d '' file; do
               base="$(basename "$file")"

@@ -1,0 +1,92 @@
+name: Retry Platform Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing tag whose source must be rebuilt
+        required: true
+        type: string
+      target:
+        description: Only this platform is rebuilt
+        required: true
+        type: choice
+        options:
+          - windows-x64
+          - windows-arm64
+          - macos-intel
+          - macos-arm64
+          - linux-x64
+          - linux-arm64
+
+permissions:
+  contents: read
+  attestations: write
+  id-token: write
+
+jobs:
+  package:
+    name: Retry ${{ inputs.target }}
+    runs-on: ${{ fromJSON('{"windows-x64":"windows-2025","windows-arm64":"windows-11-arm","macos-intel":"macos-15-intel","macos-arm64":"macos-15","linux-x64":"ubuntu-24.04","linux-arm64":"ubuntu-24.04-arm"}')[inputs.target] }}
+    timeout-minutes: 45
+    env:
+      PLATFORM: ${{ fromJSON('{"windows-x64":"windows/amd64","windows-arm64":"windows/arm64","macos-intel":"darwin/amd64","macos-arm64":"darwin/arm64","linux-x64":"linux/amd64","linux-arm64":"linux/arm64"}')[inputs.target] }}
+      ARTIFACT: ${{ inputs.target }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.release_tag }}
+          persist-credentials: false
+          fetch-depth: 1
+      - uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache-dependency-path: go.sum
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install Linux WebKit dependencies
+        if: startsWith(inputs.target, 'linux-')
+        run: sudo apt-get update && sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+      - name: Install and build frontend
+        run: |
+          npm --prefix frontend ci
+          npm --prefix frontend run typecheck
+          npm --prefix frontend run build
+      - name: Test Go
+        run: |
+          go test ./...
+          go vet ./...
+      - name: Build and package Windows
+        if: startsWith(inputs.target, 'windows-')
+        shell: pwsh
+        run: |
+          $env:Path = "$(go env GOPATH)\bin;$env:Path"
+          go install github.com/wailsapp/wails/v2/cmd/wails@v2.14.0
+          $version = '${{ inputs.release_tag }}'.TrimStart('v')
+          wails build -clean -trimpath -platform "$env:PLATFORM" -ldflags "-X main.version=$version"
+          $architecture = if ($env:PLATFORM -eq 'windows/arm64') { 'arm64' } else { 'x64' }
+          ./scripts/package-windows.ps1 -Version $version -Architecture $architecture
+      - name: Build and package Unix
+        if: "!startsWith(inputs.target, 'windows-')"
+        shell: bash
+        run: |
+          export PATH="$(go env GOPATH)/bin:$PATH"
+          go install github.com/wailsapp/wails/v2/cmd/wails@v2.14.0
+          version="${{ inputs.release_tag }}"
+          version="${version#v}"
+          wails build -clean -trimpath -platform "$PLATFORM" -tags webkit2_41 -ldflags "-X main.version=$version"
+          chmod +x scripts/package-unix.sh
+          ./scripts/package-unix.sh "$version" "$PLATFORM"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: easyinput-flasher-${{ env.ARTIFACT }}
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+      - name: Attest packaged assets
+        uses: actions/attest-build-provenance@v2
+        with:
+          subject-path: dist/*

@@ -1,10 +1,10 @@
 # EasyInput Flasher 开发状态
 
-## 2026-09-02：发布与 CI 收敛为 Windows x64
+## 2026-09-02：六平台单平台重试与合并发布
 
 - 已取消 `v0.1.22` 的 Release run `33642934892`；Linux x64 卡在 WebKit 系统依赖安装，未生成 GitHub Release。
-- `.github/workflows/ci.yml` 与 `release.yml` 均已移除 Windows ARM64、macOS、Linux 矩阵，仅保留 Windows x64；发布汇总只下载 Windows x64 artifact，避免等待不存在的平台产物。
-- 验证：两份 workflow YAML 解析通过、`git diff --check` 通过。待提交并以新 tag `v0.1.23` 触发 Windows x64 CI/Release，再回读包和排序显示。
+- 已恢复 CI/Release 的 Windows x64/ARM64、macOS Intel/Apple Silicon、Linux x64/ARM64 矩阵；新增单平台重试构建和跨 run artifact 合并发布。CI 忽略纯 workflow、文档与状态记录提交，避免本次流程配置本身重跑六平台。
+- 验证：全部 workflow YAML 解析通过、`git diff --check` 通过。待将重试流程推送 main 后，单独重跑 `v0.1.22` 的 Linux x64 并与原 run 已成功的五个平台资产合并发布。
 
 ## 2026-09-02：v0.1.22 排序修复待发布
 
