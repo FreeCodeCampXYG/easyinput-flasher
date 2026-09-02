@@ -516,6 +516,9 @@ select:focus-visible {
 }
 
 .action-column {
+  position: sticky;
+  top: 20px;
+  align-self: start;
   padding: 0 2px 0 32px;
   border-left: 1px solid var(--line);
 }
@@ -829,6 +832,7 @@ code {
   align-items: center;
   gap: 7px;
   min-height: 36px;
+  padding: 0 4px;
   border-bottom: 1px solid var(--line-soft);
   color: #b0b2bc;
   font-size: 11px;
@@ -858,6 +862,59 @@ code {
 .confirmation-field {
   margin-top: 16px;
 }
+
+.confirmation-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.confirmation-input-row .button {
+  min-height: 34px;
+  padding-inline: 10px;
+  font-size: 11px;
+}
+
+.confirmation-field small code {
+  color: var(--accent);
+  font-family: "SFMono-Regular", Consolas, monospace;
+}
+
+.operation-reminder {
+  position: fixed;
+  right: 24px;
+  bottom: calc(var(--status-height) + 18px);
+  z-index: 40;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 10px;
+  width: min(390px, calc(100vw - 32px));
+  padding: 13px 14px;
+  border: 1px solid rgba(232, 179, 72, .55);
+  border-radius: 8px;
+  color: #f3dfae;
+  background: rgba(48, 39, 20, .96);
+  box-shadow: 0 12px 34px rgba(0, 0, 0, .28);
+}
+
+.operation-reminder-icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 50%;
+  color: #251d0b;
+  background: var(--amber);
+}
+
+.operation-reminder div:last-child {
+  display: grid;
+  gap: 4px;
+}
+
+.operation-reminder strong { font-size: 12px; }
+.operation-reminder span { color: #d3c18f; font-size: 10px; line-height: 1.55; }
 
 .gate-reasons {
   display: flex;
@@ -1803,6 +1860,7 @@ code {
   }
 
   .action-column {
+    position: static;
     padding: 26px 0 0;
     border-top: 1px solid var(--line);
     border-left: 0;
@@ -2013,5 +2071,18 @@ code {
 
   .update-status .button {
     grid-column: 1 / -1;
+  }
+
+  .confirmation-input-row {
+    grid-template-columns: 1fr;
+  }
+
+  .confirmation-input-row .button {
+    width: 100%;
+  }
+
+  .operation-reminder {
+    right: 16px;
+    bottom: calc(var(--status-height) + 12px);
   }
 }
