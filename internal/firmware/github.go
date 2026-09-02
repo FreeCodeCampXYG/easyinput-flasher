@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -88,7 +90,80 @@ func (c *GitHubClient) ListReleases(ctx context.Context, source config.Source) (
 			Name: release.Name, PublishedAt: release.PublishedAt, Trusted: source.Trusted, Manifest: manifest, IsFactory: isFactory,
 		})
 	}
+	// GitHub 按发布时间返回 Release，不能保证 v0.2.10 排在 v0.2.9 之前；列表统一按固件 tag 的语义版本降序。
+	sortFirmwareReleases(result)
 	return result, nil
+}
+
+type firmwareVersion struct {
+	major      int
+	minor      int
+	patch      int
+	prerelease bool
+}
+
+func sortFirmwareReleases(releases []domain.FirmwareRelease) {
+	sort.SliceStable(releases, func(i, j int) bool {
+		left, leftOK := parseFirmwareVersion(releases[i].Tag)
+		right, rightOK := parseFirmwareVersion(releases[j].Tag)
+		if leftOK && rightOK {
+			if comparison := compareFirmwareVersions(left, right); comparison != 0 {
+				return comparison > 0
+			}
+		} else if leftOK != rightOK {
+			return leftOK
+		}
+		if releases[i].PublishedAt != releases[j].PublishedAt {
+			return releases[i].PublishedAt > releases[j].PublishedAt
+		}
+		return releases[i].Tag > releases[j].Tag
+	})
+}
+
+func parseFirmwareVersion(tag string) (firmwareVersion, bool) {
+	for index := 0; index+1 < len(tag); index++ {
+		if tag[index] != 'v' || tag[index+1] < '0' || tag[index+1] > '9' {
+			continue
+		}
+		parts := strings.SplitN(tag[index+1:], ".", 3)
+		if len(parts) != 3 {
+			continue
+		}
+		major, majorErr := strconv.Atoi(parts[0])
+		minor, minorErr := strconv.Atoi(parts[1])
+		patchEnd := 0
+		for patchEnd < len(parts[2]) && parts[2][patchEnd] >= '0' && parts[2][patchEnd] <= '9' {
+			patchEnd++
+		}
+		if majorErr != nil || minorErr != nil || patchEnd == 0 {
+			continue
+		}
+		patch, patchErr := strconv.Atoi(parts[2][:patchEnd])
+		suffix := parts[2][patchEnd:]
+		if patchErr != nil || (suffix != "" && !strings.HasPrefix(suffix, "-")) {
+			continue
+		}
+		return firmwareVersion{major: major, minor: minor, patch: patch, prerelease: suffix != ""}, true
+	}
+	return firmwareVersion{}, false
+}
+
+func compareFirmwareVersions(left, right firmwareVersion) int {
+	for _, values := range [][2]int{{left.major, right.major}, {left.minor, right.minor}, {left.patch, right.patch}} {
+		if values[0] > values[1] {
+			return 1
+		}
+		if values[0] < values[1] {
+			return -1
+		}
+	}
+	if left.prerelease != right.prerelease {
+		if left.prerelease {
+			return -1
+		}
+		return 1
+	}
+	return 0
 }
 
 // AuditSource 只读取公开仓库的发布合同，帮助贡献者在接入前补齐自动构建与发布资产。

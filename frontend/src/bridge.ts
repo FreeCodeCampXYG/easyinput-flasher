@@ -215,7 +215,8 @@ async function refreshFrom(bridge: WailsAppBridge): Promise<DashboardSnapshot | 
 }
 
 function adaptSnapshot(raw: RawDashboardSnapshot): DashboardSnapshot {
-  const releases = (raw.firmware ?? []).map(adaptFirmware);
+  // 后端已排序；前端再次按 tag 排序，兼容旧桌面后端或缓存快照，避免 v0.2.10 被字符串顺序排到 v0.2.9 后。
+  const releases = (raw.firmware ?? []).map(adaptFirmware).sort(compareFirmwareReleases);
   const devices = (raw.devices ?? []).map(adaptDevice);
   const stage = adaptStage(raw.status?.stage);
   return {
@@ -301,6 +302,26 @@ function adaptFirmware(raw: RawFirmwareRelease): FirmwareRelease {
     features: [],
     changelog: manifest.releaseNotes ? [manifest.releaseNotes] : [],
   };
+}
+
+function compareFirmwareReleases(left: FirmwareRelease, right: FirmwareRelease): number {
+  const leftVersion = parseFirmwareVersion(left.tag);
+  const rightVersion = parseFirmwareVersion(right.tag);
+  if (leftVersion && rightVersion) {
+    for (const index of [0, 1, 2]) {
+      if (leftVersion.parts[index] !== rightVersion.parts[index]) return rightVersion.parts[index] - leftVersion.parts[index];
+    }
+    if (leftVersion.prerelease !== rightVersion.prerelease) return leftVersion.prerelease ? 1 : -1;
+  } else if (leftVersion || rightVersion) {
+    return leftVersion ? -1 : 1;
+  }
+  return right.publishedAt.localeCompare(left.publishedAt) || right.tag.localeCompare(left.tag);
+}
+
+function parseFirmwareVersion(tag: string): { parts: [number, number, number]; prerelease: boolean } | undefined {
+  const match = tag.match(/(?:^|[^A-Za-z0-9])v?(\d+)\.(\d+)\.(\d+)(-.+)?$/);
+  if (!match) return undefined;
+  return { parts: [Number(match[1]), Number(match[2]), Number(match[3])], prerelease: Boolean(match[4]) };
 }
 
 function releaseTitle(name: string, tag: string, repository: string): string {
