@@ -1,5 +1,11 @@
 # EasyInput Flasher 开发状态
 
+## 2026-09-02：发布与 CI 收敛为 Windows x64
+
+- 已取消 `v0.1.22` 的 Release run `33642934892`；Linux x64 卡在 WebKit 系统依赖安装，未生成 GitHub Release。
+- `.github/workflows/ci.yml` 与 `release.yml` 均已移除 Windows ARM64、macOS、Linux 矩阵，仅保留 Windows x64；发布汇总只下载 Windows x64 artifact，避免等待不存在的平台产物。
+- 验证：两份 workflow YAML 解析通过、`git diff --check` 通过。待提交并以新 tag `v0.1.23` 触发 Windows x64 CI/Release，再回读包和排序显示。
+
 ## 2026-09-02：v0.1.22 排序修复待发布
 
 - 已确认已发布的 `v0.1.21` 在排序修复提交前创建，截图中的程序仍是该旧包；不能修改或重推既有 tag。
