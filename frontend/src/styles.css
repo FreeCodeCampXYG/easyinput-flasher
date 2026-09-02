@@ -271,6 +271,32 @@ select:focus-visible {
   line-height: 1.65;
 }
 
+/* 烧录页需让关键确认控件在常见桌面高度内可见，次要说明收紧但不缩小主操作字号。 */
+.page-flash {
+  padding-top: 20px;
+  padding-bottom: 34px;
+}
+
+.page-flash .page-header {
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.page-flash .eyebrow {
+  margin-bottom: 3px;
+  font-size: 10px;
+}
+
+.page-flash .page-header h1 {
+  font-size: 26px;
+}
+
+.page-flash .page-header p {
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .header-actions {
   display: flex;
   flex: 0 0 auto;
@@ -381,6 +407,11 @@ select:focus-visible {
   padding: 15px 16px;
   border-block: 1px solid var(--line);
   background: #0d0e13;
+}
+
+.page-flash .flash-stepper {
+  margin-bottom: 14px;
+  padding-block: 11px;
 }
 
 .step {
@@ -511,6 +542,10 @@ select:focus-visible {
   gap: 28px;
 }
 
+.page-flash .workspace-grid {
+  gap: 20px;
+}
+
 .workspace-column {
   min-width: 0;
 }
@@ -521,6 +556,10 @@ select:focus-visible {
   align-self: start;
   padding: 0 2px 0 32px;
   border-left: 1px solid var(--line);
+}
+
+.page-flash .action-column {
+  padding-left: 24px;
 }
 
 .action-column > .section-heading { margin-bottom: 18px; }
@@ -542,6 +581,15 @@ select:focus-visible {
 
 .section-heading:not(:first-child) {
   margin-top: 28px;
+}
+
+.page-flash .section-heading {
+  margin-bottom: 9px;
+  padding-bottom: 7px;
+}
+
+.page-flash .section-heading:not(:first-child) {
+  margin-top: 20px;
 }
 
 .section-heading > span {
@@ -660,11 +708,19 @@ select:focus-visible {
   border-left: 1px solid var(--line-soft);
 }
 
+.page-flash .fact-grid {
+  margin-top: 11px;
+}
+
 .fact {
   min-width: 0;
   padding: 12px;
   border-right: 1px solid var(--line-soft);
   border-bottom: 1px solid var(--line-soft);
+}
+
+.page-flash .fact {
+  padding: 9px 10px;
 }
 
 .fact dt {
@@ -697,6 +753,11 @@ code {
   border: 1px solid var(--line);
   border-radius: 6px;
   background: #0e0f14;
+}
+
+.page-flash .firmware-summary {
+  margin-top: 9px;
+  padding: 11px 12px;
 }
 
 .release-title-row {
@@ -750,6 +811,21 @@ code {
 
 .progress-panel {
   padding: 13px 0 15px;
+}
+
+.page-flash .progress-panel {
+  padding: 10px 12px 11px;
+}
+
+.page-flash .progress-meta,
+.page-flash .progress-panel code,
+.page-flash .release-metadata span,
+.page-flash .checksum-line,
+.page-flash .flash-detail-grid,
+.page-flash .flash-detail-heading > span,
+.page-flash .flash-image-row > div > span,
+.page-flash .gate-row small {
+  font-size: 9px;
 }
 
 .progress-meta {
@@ -817,6 +893,11 @@ code {
 .flash-log-lines > div { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 7px; color: var(--muted); font-family: "SFMono-Regular", Consolas, monospace; font-size: 9px; line-height: 1.45; }
 .flash-log-lines time { color: var(--subtle); }
 
+.page-flash .flash-detail-panel { margin-top: 10px; padding: 10px; }
+.page-flash .flash-detail-heading { padding-bottom: 7px; }
+.page-flash .flash-image-row { min-height: 42px; }
+.page-flash .flash-log-lines { max-height: 108px; margin-top: 7px; }
+
 .flash-detail-grid span { display: flex; justify-content: space-between; gap: 8px; min-width: 0; }
 .flash-detail-grid code { margin: 0; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
@@ -836,6 +917,11 @@ code {
   border-bottom: 1px solid var(--line-soft);
   color: #b0b2bc;
   font-size: 11px;
+}
+
+.page-flash .gate-row {
+  min-height: 32px;
+  font-size: 10px;
 }
 
 .gate-row:last-child {
