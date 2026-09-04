@@ -2,11 +2,16 @@ package config
 
 import "testing"
 
-func TestDefaultSettingsUseConfiguredLocalProxy(t *testing.T) {
+func TestDefaultSettingsUseAutomaticProxyProbe(t *testing.T) {
 	settings := DefaultSettings()
-	if settings.ProxyMode != "custom" || settings.ProxyURL != DefaultProxyURL {
+	if settings.ProxyMode != "auto" || settings.ProxyURL != DefaultProxyURL {
 		t.Fatalf("unexpected default proxy: %#v", settings)
 	}
+}
+
+func TestNormalizeProxyURLAcceptsPortOnly(t *testing.T) {
+	value, err := NormalizeProxyURL("127.0.0.1:10808")
+	if err != nil || value != "http://127.0.0.1:10808" { t.Fatalf("NormalizeProxyURL() = %q, %v", value, err) }
 }
 
 func TestNormalizeRepositoryAcceptsGitHubRepositoryOnly(t *testing.T) {

@@ -60,6 +60,8 @@ interface RawDashboardSnapshot {
   devices: RawDeviceInfo[];
   firmware: RawFirmwareRelease[];
   proxyMode: string;
+  networkOnline?: boolean;
+  proxyAddress?: string;
   logs?: Array<{ time: string; level: string; scope: string; message: string }>;
 }
 
@@ -78,6 +80,8 @@ interface WailsAppBridge {
   ExportDiagnostics?: () => Promise<string>;
   RunHardwareDiagnostics?: (deviceId: string) => Promise<HardwareDiagnosticSnapshot>;
   ReadHardwareDiagnostics?: (deviceId: string) => Promise<HardwareDiagnosticTelemetry>;
+  ConfigureNetwork?: (mode: string, address: string) => Promise<RawDashboardSnapshot>;
+  CheckNetwork?: () => Promise<RawDashboardSnapshot>;
 }
 
 declare global {
@@ -116,6 +120,16 @@ export async function listFirmware(): Promise<DashboardSnapshot | undefined> {
   if (!bridge?.ListFirmware) return undefined;
   await bridge.ListFirmware();
   return refreshFrom(bridge);
+}
+
+export async function configureNetwork(mode: string, address: string): Promise<DashboardSnapshot | undefined> {
+  const bridge = appBridge(); if (!bridge?.ConfigureNetwork) throw new Error("网络设置后端尚未连接");
+  return adaptSnapshot(await bridge.ConfigureNetwork(mode, address));
+}
+
+export async function checkNetwork(): Promise<DashboardSnapshot | undefined> {
+  const bridge = appBridge(); if (!bridge?.CheckNetwork) return undefined;
+  return adaptSnapshot(await bridge.CheckNetwork());
 }
 
 export async function importLocalBundle(file: File): Promise<DashboardSnapshot | undefined> {
@@ -245,9 +259,9 @@ function adaptSnapshot(raw: RawDashboardSnapshot): DashboardSnapshot {
       ? [{ id: `status-${raw.status.stage}`, time: "现在", level: stage === "failed" ? "error" : "info", scope: "状态", message: raw.status.message }, ...(raw.logs ?? []).map((item, index) => ({ id: `log-${index}`, time: formatLogTime(item.time), level: adaptLogLevel(item.level), scope: item.scope, message: item.message }))]
       : (raw.logs ?? []).map((item, index) => ({ id: `log-${index}`, time: formatLogTime(item.time), level: adaptLogLevel(item.level), scope: item.scope, message: item.message })),
     network: {
-      online: true,
+      online: Boolean(raw.networkOnline),
       proxyMode: adaptProxyMode(raw.proxyMode),
-      proxyAddress: raw.proxyMode === "custom" ? "已配置" : undefined,
+      proxyAddress: raw.proxyAddress || (raw.proxyMode === "custom" ? "已配置" : undefined),
     },
     cache: { items: 0, size: "按需缓存" },
   };

@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -37,10 +38,26 @@ func NormalizeRepository(value string) (string, error) {
 
 func DefaultSettings() Settings {
 	return Settings{
-		ProxyMode: "custom",
+		ProxyMode: "auto",
 		ProxyURL:  DefaultProxyURL,
 		Sources:   []Source{{Repository: "FreeCodeCampXYG/easy-input-maker", Trusted: true, Enabled: true}},
 	}
+}
+
+// NormalizeProxyURL 将用户输入归一化为带协议的代理地址，避免端口输入在不同平台被误解析。
+func NormalizeProxyURL(value string) (string, error) {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return "", fmt.Errorf("代理地址不能为空")
+	}
+	if !strings.Contains(value, "://") {
+		value = "http://" + value
+	}
+	parsed, err := url.Parse(value)
+	if err != nil || parsed.Host == "" || parsed.Port() == "" {
+		return "", fmt.Errorf("代理地址应为 host:port")
+	}
+	return parsed.String(), nil
 }
 
 func Load() (Settings, error) {

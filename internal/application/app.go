@@ -31,14 +31,17 @@ type App struct {
 	version string
 	ctx     context.Context
 
-	mu       sync.RWMutex
-	settings config.Settings
-	devices  map[string]domain.DeviceInfo
-	firmware []domain.FirmwareRelease
-	status   domain.FlashStatus
-	cancel   context.CancelFunc
-	logs     []domain.ActivityLog
-	local    map[string]string
+	mu             sync.RWMutex
+	settings       config.Settings
+	devices        map[string]domain.DeviceInfo
+	firmware       []domain.FirmwareRelease
+	status         domain.FlashStatus
+	cancel         context.CancelFunc
+	logs           []domain.ActivityLog
+	local          map[string]string
+	networkOnline  bool
+	networkMode    string
+	networkAddress string
 }
 
 func New(version string) *App {
@@ -148,7 +151,60 @@ func (a *App) GetDashboardSnapshot() domain.DashboardSnapshot {
 		}
 		return devices[i].Port < devices[j].Port
 	})
-	return domain.DashboardSnapshot{AppVersion: a.version, Status: a.status, Devices: devices, Firmware: a.firmware, ProxyMode: a.settings.ProxyMode, Logs: append([]domain.ActivityLog(nil), a.logs...)}
+	mode := a.networkMode
+	if mode == "" {
+		mode = a.settings.ProxyMode
+	}
+	return domain.DashboardSnapshot{AppVersion: a.version, Status: a.status, Devices: devices, Firmware: a.firmware, ProxyMode: mode, NetworkOnline: a.networkOnline, ProxyAddress: a.networkAddress, Logs: append([]domain.ActivityLog(nil), a.logs...)}
+}
+
+// ConfigureNetwork 保存网络策略并立即探测 GitHub；探测失败仍保留用户设置，便于离线机器下次继续调整。
+func (a *App) ConfigureNetwork(mode, address string) (domain.DashboardSnapshot, error) {
+	mode = strings.TrimSpace(mode)
+	if mode != "auto" && mode != "system" && mode != "direct" && mode != "custom" {
+		return domain.DashboardSnapshot{}, fmt.Errorf("网络模式无效")
+	}
+	a.mu.RLock()
+	settings := a.settings
+	a.mu.RUnlock()
+	settings.ProxyMode = mode
+	if mode == "custom" {
+		normalized, err := config.NormalizeProxyURL(address)
+		if err != nil {
+			return domain.DashboardSnapshot{}, err
+		}
+		settings.ProxyURL = normalized
+	}
+	if err := config.Save(settings); err != nil {
+		return domain.DashboardSnapshot{}, err
+	}
+	result := firmware.ProbeNetwork(a.ctx, settings)
+	a.mu.Lock()
+	a.settings = settings
+	a.networkOnline = result.Online
+	a.networkMode = result.ProxyMode
+	a.networkAddress = result.ProxyAddress
+	a.mu.Unlock()
+	if result.Online {
+		a.appendLog("success", "网络", "GitHub 可访问："+result.ProxyAddress)
+	} else {
+		a.appendLog("warning", "网络", "GitHub 暂不可访问，请检查代理或系统网络")
+	}
+	return a.GetDashboardSnapshot(), nil
+}
+
+// CheckNetwork 重新按当前策略探测，不修改用户配置。
+func (a *App) CheckNetwork() domain.DashboardSnapshot {
+	a.mu.RLock()
+	settings := a.settings
+	a.mu.RUnlock()
+	result := firmware.ProbeNetwork(a.ctx, settings)
+	a.mu.Lock()
+	a.networkOnline = result.Online
+	a.networkMode = result.ProxyMode
+	a.networkAddress = result.ProxyAddress
+	a.mu.Unlock()
+	return a.GetDashboardSnapshot()
 }
 
 // ExportDiagnostics 导出脱敏阶段日志到用户缓存目录，便于提交 Issue 而不暴露完整设备身份。
@@ -334,6 +390,18 @@ func (a *App) ListFirmware() ([]domain.FirmwareRelease, error) {
 	a.mu.RLock()
 	settings := a.settings
 	a.mu.RUnlock()
+	result := firmware.ProbeNetwork(a.ctx, settings)
+	a.mu.Lock()
+	a.networkOnline = result.Online
+	a.networkMode = result.ProxyMode
+	a.networkAddress = result.ProxyAddress
+	a.mu.Unlock()
+	if settings.ProxyMode == "auto" && result.Online {
+		settings.ProxyMode = result.ProxyMode
+		if result.ProxyMode == "custom" {
+			settings.ProxyURL = result.ProxyAddress
+		}
+	}
 	client, err := firmware.NewGitHubClient(settings)
 	if err != nil {
 		return nil, err
@@ -351,7 +419,7 @@ func (a *App) ListFirmware() ([]domain.FirmwareRelease, error) {
 		releases = append(releases, items...)
 	}
 	if len(releases) == 0 && len(failures) > 0 {
-		return nil, fmt.Errorf("未能读取 GitHub Release，请检查 127.0.0.1:1080 代理或网络连接: %s", strings.Join(failures, "；"))
+		return nil, fmt.Errorf("未能读取 GitHub Release，请检查网络模式或代理端口: %s", strings.Join(failures, "；"))
 	}
 	a.mu.Lock()
 	a.firmware = releases

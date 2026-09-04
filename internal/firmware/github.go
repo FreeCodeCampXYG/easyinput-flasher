@@ -23,6 +23,12 @@ type GitHubClient struct {
 	client *http.Client
 }
 
+type NetworkResult struct {
+	Online       bool
+	ProxyMode    string
+	ProxyAddress string
+}
+
 type githubRelease struct {
 	ID          int64  `json:"id"`
 	TagName     string `json:"tag_name"`
@@ -39,16 +45,70 @@ type githubRelease struct {
 
 func NewGitHubClient(settings config.Settings) (*GitHubClient, error) {
 	transport := http.DefaultTransport.(*http.Transport).Clone()
-	if settings.ProxyMode == "disabled" {
+	if settings.ProxyMode == "disabled" || settings.ProxyMode == "direct" {
 		transport.Proxy = nil
 	} else if settings.ProxyMode == "custom" {
-		proxyURL, err := url.Parse(settings.ProxyURL)
-		if err != nil || proxyURL.Scheme == "" || proxyURL.Host == "" {
-			return nil, fmt.Errorf("自定义代理地址无效")
+		proxyValue, err := config.NormalizeProxyURL(settings.ProxyURL)
+		if err != nil {
+			return nil, err
 		}
+		proxyURL, _ := url.Parse(proxyValue)
 		transport.Proxy = http.ProxyURL(proxyURL)
+	} else {
+		// system/auto 交给系统环境变量和 WinHTTP 代理，兼容全局模式而不猜端口。
+		transport.Proxy = http.ProxyFromEnvironment
 	}
 	return &GitHubClient{client: &http.Client{Transport: transport, Timeout: 20 * time.Second}}, nil
+}
+
+// ProbeNetwork 按用户选择的策略探测 GitHub；auto 依次尝试自定义代理、系统代理和直连。
+func ProbeNetwork(ctx context.Context, settings config.Settings) NetworkResult {
+	candidates := []struct {
+		mode, address string
+		settings      config.Settings
+	}{}
+	if settings.ProxyMode == "auto" || settings.ProxyMode == "custom" {
+		if normalized, err := config.NormalizeProxyURL(settings.ProxyURL); err == nil {
+			copy := settings
+			copy.ProxyMode, copy.ProxyURL = "custom", normalized
+			candidates = append(candidates, struct {
+				mode, address string
+				settings      config.Settings
+			}{"custom", normalized, copy})
+		}
+	}
+	if settings.ProxyMode == "auto" || settings.ProxyMode == "system" || settings.ProxyMode == "inherit" {
+		copy := settings
+		copy.ProxyMode = "system"
+		candidates = append(candidates, struct {
+			mode, address string
+			settings      config.Settings
+		}{"system", "系统代理", copy})
+	}
+	if settings.ProxyMode == "auto" || settings.ProxyMode == "direct" || settings.ProxyMode == "disabled" {
+		copy := settings
+		copy.ProxyMode = "direct"
+		candidates = append(candidates, struct {
+			mode, address string
+			settings      config.Settings
+		}{"direct", "不使用代理", copy})
+	}
+	for _, candidate := range candidates {
+		client, err := NewGitHubClient(candidate.settings)
+		if err != nil {
+			continue
+		}
+		request, _ := http.NewRequestWithContext(ctx, http.MethodGet, "https://api.github.com/rate_limit", nil)
+		request.Header.Set("User-Agent", "EasyInput-Flasher")
+		response, err := client.client.Do(request)
+		if err == nil {
+			_ = response.Body.Close()
+			if response.StatusCode >= 200 && response.StatusCode < 500 {
+				return NetworkResult{Online: true, ProxyMode: candidate.mode, ProxyAddress: candidate.address}
+			}
+		}
+	}
+	return NetworkResult{Online: false, ProxyMode: settings.ProxyMode, ProxyAddress: settings.ProxyURL}
 }
 
 // ListReleases 只读取公开 Release；来源是否能烧录仍由本地信任目录和 manifest 决定。

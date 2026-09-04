@@ -1,16 +1,22 @@
 # EasyInput Flasher 开发状态
 
+## 2026-09-04：网络代理自动探测与可配置端口
+
+- 后端配置新增 `auto/system/direct/custom` 网络策略；自动模式按自定义代理（默认 `127.0.0.1:1080`，可改端口）→系统/全局代理→直连探测 GitHub。
+- “关于与帮助”页新增网络设置面板，可保存策略、端口并重新测试；快照展示真实 GitHub 可达性与实际采用路径。前端不构造命令或下载地址。
+- 验证：`go test ./internal/config ./internal/firmware`、application 测试二进制编译、前端 typecheck/build、`git diff --check` 通过；application 测试直接执行受 Windows `Access is denied` 限制；未进行不同网络环境和实板烧录验证。
+
 ## 2026-09-02：六平台单平台重试与合并发布
 
 - 已取消 `v0.1.22` 的 Release run `33642934892`；Linux x64 卡在 WebKit 系统依赖安装，未生成 GitHub Release。
 - 已恢复 CI/Release 的 Windows x64/ARM64、macOS Intel/Apple Silicon、Linux x64/ARM64 矩阵；新增单平台重试构建和跨 run artifact 合并发布。CI 忽略纯 workflow、文档与状态记录提交，避免本次流程配置本身重跑六平台。
-- 验证：全部 workflow YAML 解析通过、`git diff --check` 通过。待将重试流程推送 main 后，单独重跑 `v0.1.22` 的 Linux x64 并与原 run 已成功的五个平台资产合并发布。
+- 验证：全部 workflow YAML 解析、`git diff --check` 通过；Linux x64 重试 run `33647617987` 成功，合并发布 run `33648149667` 成功，`v0.1.22` Release 已包含六平台归档及六个 SHA-256 文件。
 
-## 2026-09-02：v0.1.22 排序修复待发布
+## 2026-09-02：v0.1.22 排序修复已发布
 
 - 已确认已发布的 `v0.1.21` 在排序修复提交前创建，截图中的程序仍是该旧包；不能修改或重推既有 tag。
 - 后端语义版本排序之外，前端适配层也按同一规则排序，兼容旧后端或缓存快照；下一包应显示 `v0.2.12`、`v0.2.11`、`v0.2.10`、`v0.2.9` 的正确降序。
-- 验证：前端 `npm run typecheck`、`npm run build`、`go test ./internal/firmware`、定向 `go vet` 与差异检查通过；待以新 `v0.1.22` 包运行时复核。
+- 验证：前端 `npm run typecheck`、`npm run build`、`go test ./internal/firmware`、定向 `go vet` 与差异检查通过；`v0.1.22` 六平台 Release 资产已回读，桌面端排序运行时复核仍待安装新包。
 
 ## 2026-09-02：固件 Release 语义版本排序
 

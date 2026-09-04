@@ -56,6 +56,8 @@ import {
   runHardwareDiagnostics,
   readHardwareDiagnostics,
   listFirmware,
+  configureNetwork,
+  checkNetwork,
   scanDevices,
   startFlash,
   trustFirmwareSource,
@@ -257,7 +259,7 @@ function App() {
           />
         );
       case "about":
-        return <AboutPage version={snapshot.appVersion} />;
+        return <AboutPage version={snapshot.appVersion} snapshot={snapshot} onConfigure={async (mode, address) => applySnapshot(await configureNetwork(mode, address))} onCheck={async () => applySnapshot(await checkNetwork())} />;
       default:
         return (
           <FlashPage
@@ -981,7 +983,11 @@ function UpdatesPage({ currentVersion, availableVersion, onCheck, checking }: { 
   );
 }
 
-function AboutPage({ version }: { version: string }) {
+function AboutPage({ version, snapshot, onConfigure, onCheck }: { version: string; snapshot: DashboardSnapshot; onConfigure: (mode: string, address: string) => Promise<void>; onCheck: () => Promise<void> }) {
+  const [mode, setMode] = useState(snapshot.network.proxyMode === "direct" ? "direct" : snapshot.network.proxyMode === "system" ? "system" : "auto");
+  const [address, setAddress] = useState("127.0.0.1:1080");
+  const [busy, setBusy] = useState(false);
+  const saveNetwork = async () => { setBusy(true); try { await onConfigure(mode, address); } finally { setBusy(false); } };
   return (
     <div className="page">
       <PageHeader eyebrow="产品与支持" title="EasyInput 固件烧录与硬件诊断工具" description="面向 EasyInput V2.0 的可审计烧录与板级体检工作台。" />
@@ -990,6 +996,7 @@ function AboutPage({ version }: { version: string }) {
         <div><h2>EasyInput 固件烧录与硬件诊断工具</h2><p>EasyInput Flasher · 版本 {version}</p><span>Wails + Go 桌面端 · React 工作台</span></div>
       </section>
       <div className="about-grid">
+        <section className="network-settings"><Network size={20} /><div><strong>网络与代理</strong><p>自动模式依次尝试自定义端口、系统代理和直连；不会把 1080 当成唯一入口。</p><div className="network-form"><select value={mode} onChange={(event) => setMode(event.target.value)}><option value="auto">自动探测</option><option value="system">系统/全局代理</option><option value="direct">直连网络</option></select><input value={address} onChange={(event) => setAddress(event.target.value)} placeholder="代理端口，如 127.0.0.1:1080" disabled={mode !== "auto"} /><button className="button secondary" type="button" onClick={saveNetwork} disabled={busy}>{busy ? "检测中…" : "保存并测试"}</button><button className="button ghost" type="button" onClick={() => void onCheck()} disabled={busy}>重新测试</button></div><small className={snapshot.network.online ? "ok" : "error"}>{snapshot.network.online ? `GitHub 可访问 · ${snapshot.network.proxyAddress || "已连接"}` : "GitHub 暂不可访问"}</small></div></section>
         <section><BookOpen size={20} /><div><strong>使用手册（内嵌）</strong><p>设备检测、下载模式、写入确认、恢复启动与故障排查。</p><a className="button secondary" href="#flasher-help">查看本页说明 <ChevronRight size={14} /></a></div></section>
         <section><Github size={20} /><div><strong>EasyInput Flasher 仓库</strong><p>查看烧录器源码、Release、已知问题与公开路线图。</p><a className="button secondary" href="https://github.com/FreeCodeCampXYG/easyinput-flasher" target="_blank" rel="noreferrer">访问 Flasher GitHub <ExternalLink size={14} /></a></div></section>
         <section><Github size={20} /><div><strong>CY 老师固件仓库</strong><p>查看官方 Maker 固件与 Factory 恢复 Release。</p><a className="button secondary" href="https://github.com/CY-CHENYUE/easy-input-maker/releases/tag/v0.4.53" target="_blank" rel="noreferrer">查看 v0.4.53 Release <ExternalLink size={14} /></a></div></section>

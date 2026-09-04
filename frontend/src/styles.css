@@ -1603,6 +1603,11 @@ code {
   border-left: 1px solid var(--line-soft);
 }
 
+.network-settings { grid-column: 1 / -1; }
+.network-form { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 6px; }
+.network-form select, .network-form input { min-height: 34px; border: 1px solid var(--line); background: var(--surface-2); color: var(--text); padding: 0 10px; border-radius: 6px; }
+.network-form input { flex: 1 1 180px; min-width: 160px; }
+
 .about-grid section {
   display: flex;
   gap: 12px;

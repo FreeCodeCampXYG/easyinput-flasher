@@ -92,12 +92,14 @@ type FlashStatus struct {
 }
 
 type DashboardSnapshot struct {
-	AppVersion string            `json:"appVersion"`
-	Status     FlashStatus       `json:"status"`
-	Devices    []DeviceInfo      `json:"devices"`
-	Firmware   []FirmwareRelease `json:"firmware"`
-	ProxyMode  string            `json:"proxyMode"`
-	Logs       []ActivityLog     `json:"logs"`
+	AppVersion    string            `json:"appVersion"`
+	Status        FlashStatus       `json:"status"`
+	Devices       []DeviceInfo      `json:"devices"`
+	Firmware      []FirmwareRelease `json:"firmware"`
+	ProxyMode     string            `json:"proxyMode"`
+	NetworkOnline bool              `json:"networkOnline"`
+	ProxyAddress  string            `json:"proxyAddress,omitempty"`
+	Logs          []ActivityLog     `json:"logs"`
 }
 
 type ActivityLog struct {
