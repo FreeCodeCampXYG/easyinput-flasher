@@ -11,7 +11,9 @@ func TestDefaultSettingsUseAutomaticProxyProbe(t *testing.T) {
 
 func TestNormalizeProxyURLAcceptsPortOnly(t *testing.T) {
 	value, err := NormalizeProxyURL("127.0.0.1:10808")
-	if err != nil || value != "http://127.0.0.1:10808" { t.Fatalf("NormalizeProxyURL() = %q, %v", value, err) }
+	if err != nil || value != "http://127.0.0.1:10808" {
+		t.Fatalf("NormalizeProxyURL() = %q, %v", value, err)
+	}
 }
 
 func TestNormalizeRepositoryAcceptsGitHubRepositoryOnly(t *testing.T) {
