@@ -168,7 +168,7 @@ func (a *App) ConfigureNetwork(mode, address string) (domain.DashboardSnapshot, 
 	settings := a.settings
 	a.mu.RUnlock()
 	settings.ProxyMode = mode
-	if mode == "custom" {
+	if mode == "auto" || mode == "custom" {
 		normalized, err := config.NormalizeProxyURL(address)
 		if err != nil {
 			return domain.DashboardSnapshot{}, err

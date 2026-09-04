@@ -1,5 +1,11 @@
 # EasyInput Flasher 开发状态
 
+## 2026-09-05：自动模式代理端口保存修正
+
+- 根因：`auto` 模式只探测、不保存 UI 当前输入的代理地址；配置为空或旧地址时会导致自动探测失败，而切换 `custom` 正常。
+- 修复：`ConfigureNetwork` 现在对 `auto` 与 `custom` 都归一化并保存当前端口，再执行探测。
+- 验证：Go 配置/固件测试、前端 typecheck/build、`git diff --check` 通过；尚未发布新包。
+
 ## 2026-09-05：网络设置按钮样式修正
 
 - 修复 `.about-grid button` 覆盖 `.button secondary/ghost` 的 CSS 冲突；网络设置的“保存并测试”“重新测试”恢复标准按钮边框、间距和可读性。
