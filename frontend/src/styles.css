@@ -1633,7 +1633,7 @@ code {
   line-height: 1.6;
 }
 
-.about-grid button {
+.about-grid section > div > button:not(.button) {
   display: inline-flex;
   align-items: center;
   gap: 4px;

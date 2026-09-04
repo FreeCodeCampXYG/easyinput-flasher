@@ -1,5 +1,16 @@
 # EasyInput Flasher 开发状态
 
+## 2026-09-05：网络设置按钮样式修正
+
+- 修复 `.about-grid button` 覆盖 `.button secondary/ghost` 的 CSS 冲突；网络设置的“保存并测试”“重新测试”恢复标准按钮边框、间距和可读性。
+- 验证：前端 typecheck/build、`git diff --check` 通过；尚未提交或发布新包。
+
+## 2026-09-05：网络设置入口与自定义选项可见性修正
+
+- 网络设置卡片补充明确入口文案；下拉框现在同时显示自动探测、系统/全局代理、直连网络、自定义代理四项。
+- 自动探测与自定义代理均启用端口输入框，避免用户误以为没有代理端口配置。
+- 验证：前端 typecheck/build、`git diff --check` 通过；尚未提交或发布新包。
+
 ## 2026-09-05：修复 Release publish 幂等性
 
 - 根因：`v0.1.24` 的六个 package job、artifact 下载和整理均成功，publish 因 Release 已预先存在而执行 `gh release create` 失败。
