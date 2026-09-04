@@ -1,5 +1,16 @@
 # EasyInput Flasher 开发状态
 
+## 2026-09-05：修复 Release publish 幂等性
+
+- 根因：`v0.1.24` 的六个 package job、artifact 下载和整理均成功，publish 因 Release 已预先存在而执行 `gh release create` 失败。
+- 修复：`.github/workflows/release.yml` 现在先检查 Release；已存在时使用 `gh release upload --clobber` 补齐资产，不存在时才创建。
+- 提交 `3e758d5`、tag `v0.1.25` 已推送；workflow `33894580410` 已入队，待回读六平台和 Release 资产。
+
+## 2026-09-05：v0.1.24 已提交并触发发布
+
+- 提交 `b660118` 已推送 `origin/main`，annotated tag `v0.1.24` 已推送，GitHub Release 已创建。
+- Release workflow `33893360565` 正在运行；Release 页面已创建但暂时没有资产，六平台打包结果待回读。
+
 ## 2026-09-04：网络代理自动探测与可配置端口
 
 - 后端配置新增 `auto/system/direct/custom` 网络策略；自动模式按自定义代理（默认 `127.0.0.1:1080`，可改端口）→系统/全局代理→直连探测 GitHub。
