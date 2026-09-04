@@ -127,8 +127,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           notes="docs/releases/${GITHUB_REF_NAME}.md"
-          if [ -f "$notes" ]; then
-            gh release create "${GITHUB_REF_NAME}" publish/* --title "EasyInput Flasher ${GITHUB_REF_NAME}" --notes-file "$notes"
+          if gh release view "${GITHUB_REF_NAME}" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            # 幂等发布：手动预建 Release 或重试 workflow 时只补齐资产，不重复 create。
+            gh release upload "${GITHUB_REF_NAME}" publish/* --repo "$GITHUB_REPOSITORY" --clobber
+          elif [ -f "$notes" ]; then
+            gh release create "${GITHUB_REF_NAME}" publish/* --repo "$GITHUB_REPOSITORY" --title "EasyInput Flasher ${GITHUB_REF_NAME}" --notes-file "$notes"
           else
-            gh release create "${GITHUB_REF_NAME}" publish/* --title "EasyInput Flasher ${GITHUB_REF_NAME}" --generate-notes
+            gh release create "${GITHUB_REF_NAME}" publish/* --repo "$GITHUB_REPOSITORY" --title "EasyInput Flasher ${GITHUB_REF_NAME}" --generate-notes
           fi
